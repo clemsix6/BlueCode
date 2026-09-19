@@ -1,0 +1,66 @@
+/// Names that clash, names that do not exist, and names that are not types.
+/// Structs, states and functions share one global namespace, and the three built-in type
+/// names sit in it too; errors have a namespace of their own, so a struct and an error may
+/// carry the same name.
+
+struct Point:
+    int x
+    int y
+
+
+struct Point:  // error: 'Point' is already declared
+    int z
+
+
+struct uint:  // error: 'uint' is already declared
+    int bits
+
+
+struct Twice:
+    int value
+    int value  // error: struct 'Twice' already has a field 'value'
+
+
+struct Cycle:
+    int value
+    Cycle inner  // error: struct 'Cycle' contains itself: own the field instead
+
+
+error Refused
+
+
+error Refused  // error: error 'Refused' is already declared
+
+
+error Point
+
+
+state int total
+
+
+state bool total  // error: 'total' is already declared
+
+
+def int int ():  // error: 'int' is already declared
+    return 0
+
+
+def int unknown_parameter_type (Missing value):  // error: unknown type 'Missing'
+    return 0
+
+
+def int state_as_a_type (total value):  // error: 'total' is not a type
+    return 0
+
+
+def int declared_twice (int x):
+    int y = x
+    int y = x + 1  // error: 'y' is already declared in this block
+    return y
+
+
+def int bound_over_a_name (own Point? maybe):
+    int spare = 0
+    own Point spare = take maybe or:  // error: 'spare' is already declared in this block
+        return 0
+    return 1
