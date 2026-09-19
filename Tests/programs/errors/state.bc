@@ -1,0 +1,64 @@
+/// A state variable is a place in the instance, never a value: it is not a ref, its name is
+/// taken in the same namespace as the types and the functions, and what it owns leaves it only
+/// through a ref or a "take" — reading it would move the instance's memory out from under it.
+
+struct Point:
+    int x
+    int y
+
+
+struct Node:
+    int value
+    own Node? next
+
+
+/// A state variable may hold a struct that owns, and then the instance owns what it holds.
+struct Bag:
+    own Node? held
+
+
+state ref Point cursor  // error: a state variable cannot be a ref
+
+state own Node? root
+state Bag bag
+state uint counter
+
+
+// A state name is declared once, before the functions, and shares their namespace.
+
+state uint Point  // error: 'Point' is already declared
+state uint counter  // error: 'counter' is already declared
+state uint int  // error: 'int' is already declared
+state uint reader
+
+
+def uint reader ():  // error: 'reader' is already declared
+    return counter
+
+
+// Moving out of the state.
+
+def () keep (own Node node):
+    return
+
+
+def () handed_to_a_call ():
+    keep(root)  // error: cannot move out of state 'root': take a ref into it, or take it with 'take' // error: argument 1 should be own Node, got own Node?
+
+
+def own Node? returned ():
+    return root  // error: cannot move out of state 'root': take a ref into it, or take it with 'take'
+
+
+/// A plain struct is copied, but one that owns is not: returning it would hand over the
+/// instance's memory.
+def Bag bag_returned ():
+    return bag  // error: cannot move out of state 'bag': take a ref into it, or take it with 'take'
+
+
+external def Bag crossing ():  // error: 'crossing' is external: it cannot take or return an own
+    return bag  // error: cannot move out of state 'bag': take a ref into it, or take it with 'take'
+
+
+def () into_a_local ():
+    own Node n = root  // error: cannot assign own Node? to 'n' of type own Node // error: cannot move out of state 'root': take a ref into it, or take it with 'take'
