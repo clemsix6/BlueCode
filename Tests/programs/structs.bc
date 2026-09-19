@@ -1,0 +1,89 @@
+/// How a struct is laid out, and what the host has to mirror to pass one.
+/// Two bools sit side by side in two bytes; a bool between eight-byte fields keeps a slot of
+/// its own and the bytes around it are padding the host owns and must leave zero; a nested
+/// struct takes the alignment of its widest member.
+/// A struct is a value: a parameter is a copy, a ref parameter is the caller's own.
+
+struct Flags:
+    bool first
+    bool second
+
+
+struct Mixed:
+    bool flag
+    uint value
+    bool tail
+
+
+struct Nested:
+    Flags flags
+    Mixed mixed
+
+
+struct Point:
+    int x
+    int y
+
+
+struct Line:
+    Point start
+    Point end
+
+
+/// An own field is one pointer slot. A struct holding one belongs to the pod alone: it can
+/// cross no boundary, and the canonical form the host checks has no meaning for it.
+struct Held:
+    own Point? point
+
+
+// Two bools pack: reading them apart proves the host and the pod agree on both bytes.
+external def bool both (Flags flags):
+    return flags.first and flags.second
+
+
+external def Flags flip (Flags flags):
+    return Flags(not flags.first, not flags.second)
+
+
+// A bool with eight-byte neighbours: the pod reads one byte and never the padding.
+external def uint weigh (Mixed mixed):
+    uint total = mixed.value
+    if mixed.flag:
+        total = total + 1
+    if mixed.tail:
+        total = total + 2
+    return total
+
+
+external def Mixed rebuild (bool flag, uint value, bool tail):
+    return Mixed(flag, value, tail)
+
+
+// Nesting: fields are reached through a chain of dots and built from the inside out.
+external def uint inner_value (Nested nested):
+    return nested.mixed.value
+
+
+external def bool inner_flag (Nested nested):
+    return nested.flags.second
+
+
+external def Nested pack (Flags flags, Mixed mixed):
+    return Nested(flags, mixed)
+
+
+// A field can be read straight off a struct that was just built.
+external def int corner (int x, int y):
+    return Line(Point(0, 0), Point(x, y)).end.y
+
+
+// A struct parameter is a copy: what the callee writes into it is lost when it returns.
+external def int stretched (Line line, int by):
+    line.end.x = line.end.x + by
+    return line.end.x - line.start.x
+
+
+// The same work through a ref: the host reads back what the pod wrote into its own block.
+external def () stretch (ref Line line, int by):
+    line.end.x = line.end.x + by
+    line.end.y = line.end.y + by

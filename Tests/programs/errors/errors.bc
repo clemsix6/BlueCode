@@ -1,0 +1,106 @@
+/// Every way a failure can be mishandled: the compiler must reject each one. An error only
+/// leaves a function marked "!", a call that can fail is never left bare, and "try" and
+/// "catch" both need a call that can actually fail.
+
+error Refused
+
+
+def uint! withdraw (uint balance, uint amount):
+    if balance < amount:
+        return error.Refused
+    return balance - amount
+
+
+def ()! reject ():
+    return error.Refused
+
+
+def (uint, uint)! split (uint n):
+    if n == 0:
+        return error.Refused
+    return n, n
+
+
+def uint plain (uint balance):
+    return balance
+
+
+// An error only leaves a function marked '!'
+
+def uint cannot_fail (uint balance):
+    return error.Refused  // error: 'cannot_fail' cannot fail: mark it with '!' or handle the case
+
+
+def uint! unknown_error (uint balance):
+    return error.Empty  // error: unknown error 'Empty'
+
+
+// A call that can fail is never left bare
+
+def uint bare_call (uint balance):
+    return withdraw(balance, 10)  // error: the call can fail: use 'catch'
+
+
+def uint! bare_call_in_a_failing_function (uint balance):
+    uint left = withdraw(balance, 10)  // error: the call can fail: use 'try' or 'catch'
+    return left
+
+
+// 'try' needs a '!' on both sides, and a call
+
+def uint try_without_a_bang (uint balance):
+    return try withdraw(balance, 10)  // error: 'try' needs a function marked '!': settle the failure here with 'catch'
+
+
+def uint! try_on_an_infallible_call (uint balance):
+    return try plain(balance)  // error: the call cannot fail
+
+
+def uint! try_on_a_value (uint balance):
+    return try balance  // error: 'try' needs a call
+
+
+// 'catch' needs a call that can fail
+
+def uint catch_value_on_an_infallible_call (uint balance):
+    uint left = plain(balance) catch 0  // error: the call cannot fail
+    return left
+
+
+def uint catch_block_on_an_infallible_call (uint balance):
+    uint left = plain(balance) catch err:  // error: the call cannot fail
+        return 0
+    return left
+
+
+// A fallback stands in for exactly one value, of the call's type
+
+def ()! catch_value_without_a_value ():
+    reject() catch 0  // error: 'catch' with a value needs a call that returns one value, this one returns 0
+
+
+def uint catch_value_on_several_values (uint n):
+    uint left = split(n) catch 0  // error: 'catch' with a value needs a call that returns one value, this one returns 2
+    return left
+
+
+def uint wrong_fallback (uint balance):
+    uint left = withdraw(balance, 10) catch true  // error: the fallback should be uint, got bool
+    return left
+
+
+// A catch block leaves the function; a return takes no catch at all
+
+def uint catch_block_that_falls_through (uint balance):
+    uint left = withdraw(balance, 10) catch err:  // error: the catch block must leave the function
+        balance = 0
+    return left
+
+
+def uint! catch_after_return (uint balance):
+    return withdraw(balance, 10) catch 0  // error: the call can fail: use 'try' or 'catch'  // error: unexpected token at the end of the line
+
+
+def () catch_on_a_value (uint balance, ref uint held):
+    uint left = balance catch 0  // error: 'catch' needs a call
+    held = left  // error: unexpected token at the end of the line

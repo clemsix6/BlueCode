@@ -1,0 +1,90 @@
+/// Every shape a function can take: the four return-type forms, a call with no arguments,
+/// several values received one declaration per value, a relay handing a call's results
+/// straight back, recursion and mutual recursion.
+/// A value parameter is a copy the callee owns, and nothing charges gas along the way.
+
+struct Pair:
+    int low
+    int high
+
+
+// The return types: a bare type, a parenthesised list, an empty list, nothing at all.
+external def int identity (int x):
+    return x
+
+
+external def (int, int) sum_and_difference (int x, int y):
+    return x + y, x - y
+
+
+external def () forget (int x):
+    return
+
+
+external def remember (ref Pair pair, int x):
+    pair.low = x
+
+
+// A function with no parameters: the host has no block to pass it.
+external def int answer ():
+    return 42
+
+
+// A call is a postfix operator like a field access, so one chains onto the other.
+external def Pair ordered (int a, int b):
+    if a < b:
+        return Pair(a, b)
+    return Pair(b, a)
+
+
+external def int larger (int a, int b):
+    return ordered(a, b).high
+
+
+// Several values: received with one declaration per value, or handed back as they came.
+external def int fold (int a, int b):
+    int sum, int difference = sum_and_difference(a, b)
+    return sum * 10 + difference
+
+
+external def (int, int) relay (int a, int b):
+    return sum_and_difference(a, b)
+
+
+// Recursion, including between two functions declared in either order.
+external def uint factorial (uint n):
+    if n < 2:
+        return 1
+    return n * factorial(n - 1)
+
+
+external def bool even (uint n):
+    if n == 0:
+        return true
+    return odd(n - 1)
+
+
+def bool odd (uint n):
+    if n == 0:
+        return false
+    return even(n - 1)
+
+
+// A value parameter is a copy: doubling it inside leaves the caller's number alone.
+def int doubled (int x):
+    x = x + x
+    return x
+
+
+external def int copies (int x):
+    return doubled(x) - x
+
+
+// Gas is threaded through every call and charged by none of them, however long the work.
+external def uint burn (uint rounds):
+    uint total = 0
+    uint round = 0
+    while round < rounds:
+        total = total + round
+        round = round + 1
+    return total

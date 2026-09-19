@@ -1,0 +1,157 @@
+/// The shapes the parser accepts, with nothing else going on: every way of writing the return
+/// types, every spacing of '!', declarations and field chains, and the postfix chain.
+/// It also pins what is not reserved — only 22 words are, so 'for', 'break' and even the names
+/// of the built-in types are ordinary identifiers — and that a file may end inside a block.
+
+struct Pair:
+    int low
+    int high
+
+
+struct Span:
+    Pair bounds
+    bool closed
+
+
+// Return types. What tells a return type from a function name is the token after the
+// identifier: a '(' makes it the name, anything else makes it a type.
+
+external def int bare_type ():
+    return 7
+
+
+external def (int, int) parenthesised_types ():
+    return 1, 2
+
+
+external def () no_results ():
+    return
+
+
+def no_return_types ():
+    return
+
+
+external def int relays_a_call_returning_nothing ():
+    no_return_types()
+    return 1
+
+
+// '!' may sit anywhere between the return types and the name. None of these ever fails, so the
+// error slot of their results block is always zero.
+
+external def uint! bang_tight ():
+    return 1
+
+
+external def uint ! bang_loose ():
+    return 2
+
+
+external def ()! bang_after_empty_types ():
+    return
+
+
+external def! bang_alone ():
+    return
+
+
+external def (int)! bang_after_one_type ():
+    return 3
+
+
+// Declarations, assignment and blocks.
+
+external def int multi_value_declaration ():
+    int low, int high = parenthesised_types()
+    return low * 10 + high
+
+
+external def int reassignment (int start):
+    int total = start
+    total = total + 1
+    total = total * 2
+    return total
+
+
+external def int inner_block_shadows_outer (int x):
+    int shadowed = x
+    if x > 0:
+        int shadowed = x * 100
+
+        // A blank line and a comment line are invisible to the lexer: neither opens nor closes
+        // a block, and neither breaks the one this comment sits in.
+        return shadowed
+    return shadowed
+
+
+external def int field_chain_assignment (int x):
+    Span span = Span(Pair(0, 0), false)
+    span.bounds.low = x
+    span.bounds.high = x * 2
+    span.closed = true
+    return span.bounds.low + span.bounds.high
+
+
+// Expressions: parentheses, the postfix chain, chained comparison, casts and literals.
+
+external def int parentheses_regroup (int a, int b, int c):
+    return (a + b) * c
+
+
+external def int field_of_a_fresh_value (int x):
+    return Pair(x, x * 3).high
+
+
+external def bool chained_comparison (int a, int b, bool c):
+    return a == b == c
+
+
+external def uint cast_round_trip (int x):
+    return uint(x)
+
+
+external def int cast_back (uint x):
+    return int(x)
+
+
+external def uint literal_takes_its_hint_from_the_other_operand (uint x):
+    return 2 * x
+
+
+external def uint largest_literal ():
+    return 18446744073709551615
+
+
+// Only 22 words are reserved. Everything a language usually takes is a plain identifier here,
+// including the names of the built-in types, which an inner scope may shadow.
+
+external def int unreserved_words ():
+    int for = 1
+    int break = 2
+    int continue = 4
+    int var = 8
+    int const = 16
+    int null = 32
+    int void = 64
+    int switch = 128
+    int match = 256
+    int import = 512
+    return for + break + continue + var + const + null + void + switch + match + import
+
+
+external def int type_name_as_a_local ():
+    int int = 5
+    int uint = 6
+    int bool = 7
+    return int * 100 + uint * 10 + bool
+
+
+external def int underscores_are_letters (int _x1):
+    int _ = _x1
+    return _
+
+
+// The file ends inside this function's block: closing it is the lexer's job, not the source's.
+external def int last_line_of_the_file (int x):
+    return x + 1

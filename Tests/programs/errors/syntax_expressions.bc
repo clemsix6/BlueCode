@@ -1,0 +1,64 @@
+/// Broken expressions. 'Expect' never consumes the token it did not find, so the parser
+/// carries on as if it were there: one missing word can therefore be reported several times at
+/// the same place, and the checker then reports what it makes of the empty name left behind.
+
+error Refused
+
+
+struct Point:
+    int x
+    int y
+
+
+def int plain (int n):
+    return n
+
+
+def int missing_expression (int n):
+    int y =  // error: expected an expression
+    return y
+
+
+def int unclosed_call (int n):
+    return plain(n  // error: expected ')' after the arguments
+
+
+def int unclosed_parenthesis (int n):
+    return (n + 1  // error: expected ')'
+
+
+def int field_without_a_name (Point p):
+    return p.  // error: expected a field name after '.' // error: struct 'Point' has no field ''
+
+
+def int bare_error (int n):
+    return error  // error: expected '.' after 'error' // error: expected an error name after 'error.' // error: unknown error ''
+
+
+def int error_without_a_name (int n):
+    return error.  // error: expected an error name after 'error.' // error: unknown error ''
+
+
+def int bare_new (int n):
+    own Point p = new  // error: expected a struct name after 'new' // error: expected '(' after the struct name // error: expected an expression // error: expected ')' after the values // error: '' is not a struct
+    return n
+
+
+def int new_without_a_struct_name (int n):
+    own Point p = new (1, 2)  // error: expected a struct name after 'new' // error: '(' is not a struct
+    return n
+
+
+def int new_without_a_parenthesis (int n):
+    own Point p = new Point 1, 2  // error: expected '(' after the struct name // error: expected ')' after the values
+    return n
+
+
+def int new_without_a_closing_parenthesis (int n):
+    own Point p = new Point(1, 2  // error: expected ')' after the values
+    return n
+
+
+def int try_on_a_value (int n):
+    int y = try n  // error: 'try' needs a call
+    return y

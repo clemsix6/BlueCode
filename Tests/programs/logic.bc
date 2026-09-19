@@ -1,0 +1,118 @@
+/// Booleans and comparisons. The rule worth knowing before writing any condition: 'and' and
+/// 'or' are plain boolean operators, not control flow. Both sides are evaluated every time, so
+/// the usual "guard on the left, risky operation on the right" idiom does not guard anything —
+/// the division below faults even though the left side says the divisor is zero.
+
+// Comparisons. Which instruction an ordering compiles to comes from the type of its operands,
+// so the very same 64 bits compare one way as int and the other way as uint.
+
+external def bool less_signed (int a, int b):
+    return a < b
+
+
+external def bool less_unsigned (uint a, uint b):
+    return a < b
+
+
+external def bool at_most_signed (int a, int b):
+    return a <= b
+
+
+external def bool at_most_unsigned (uint a, uint b):
+    return a <= b
+
+
+external def bool greater_signed (int a, int b):
+    return a > b
+
+
+external def bool greater_unsigned (uint a, uint b):
+    return a > b
+
+
+external def bool at_least_signed (int a, int b):
+    return a >= b
+
+
+external def bool at_least_unsigned (uint a, uint b):
+    return a >= b
+
+
+external def bool equal_ints (int a, int b):
+    return a == b
+
+
+external def bool different_ints (int a, int b):
+    return a != b
+
+
+external def bool equal_bools (bool a, bool b):
+    return a == b
+
+
+// 'not' is looser than any comparison, so it always reads the whole comparison to its right.
+
+external def bool not_binds_the_comparison (int a, int b):
+    return not a == b
+
+
+external def bool double_negation (bool a):
+    return not not a
+
+
+// The three operators together, and the shapes that make a condition readable.
+
+external def bool between (int x, int low, int high):
+    return x >= low and x <= high
+
+
+external def bool outside (int x, int low, int high):
+    return not between(x, low, high)
+
+
+external def bool either (bool a, bool b):
+    return a or b
+
+
+external def bool exclusive_or (bool a, bool b):
+    return (a or b) and not (a and b)
+
+
+external def bool same_sign (int a, int b):
+    return (a < 0) == (b < 0)
+
+
+external def bool all_three (bool a, bool b, bool c):
+    return a and b and c
+
+
+external def bool any_of_three (bool a, bool b, bool c):
+    return a or b or c
+
+
+// Both operands are evaluated whatever the other one says. Each of these faults when the
+// divisor is zero, on the line of the division, although the left operand rules that out.
+
+external def bool guarded_with_and (int a, int b):
+    return b != 0 and a / b > 1
+
+
+external def bool guarded_with_or (int a, int b):
+    return b == 0 or a / b > 1
+
+
+def bool ratio_is_large (int a, int b):
+    return a / b > 1
+
+
+external def bool guarded_by_a_call (int a, int b):
+    return b != 0 and ratio_is_large(a, b)
+
+
+// An 'if' does branch, which is what makes the guard work: the condition is evaluated, then
+// one arm or the other.
+
+external def bool guarded_with_if (int a, int b):
+    if b == 0:
+        return false
+    return a / b > 1

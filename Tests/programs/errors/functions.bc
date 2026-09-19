@@ -1,0 +1,158 @@
+/// Calls that name nothing, that name something which is not a function, that hand over the
+/// wrong number or the wrong kind of values, and returns that do not match what the function
+/// promised. Two structs with the very same fields are still two types.
+
+struct Point:
+    int x
+    int y
+
+
+struct Pair:
+    int x
+    int y
+
+
+error Refused
+
+
+def int one ():
+    return 1
+
+
+def (int, int) two ():
+    return 1, 2
+
+
+def () nothing ():
+    return
+
+
+def int! fallible (int value):
+    if value < 0:
+        return error.Refused
+    return value
+
+
+def int takes_int (int value):
+    return value
+
+
+def int takes_point (Point point):
+    return point.x
+
+
+def int takes_ref (ref Point point):
+    return point.x
+
+
+// Parameters and names.
+def int duplicate_parameter (int value, int value):  // error: duplicate parameter 'value'
+    return value
+
+
+def int undefined_name ():
+    return missing  // error: undefined name 'missing'
+
+
+def int function_as_a_value ():
+    return one  // error: 'one' is a function, not a value
+
+
+def int type_as_a_value ():
+    return Point  // error: 'Point' is a type, not a value
+
+
+// What a call yields, where it is used.
+def int several_values_in_an_expression ():
+    return two() + 1  // error: the call returns 2 values, only one can be used here
+
+
+def int no_value_in_an_expression ():
+    return nothing() + 1  // error: the call returns nothing
+
+
+def int several_values_in_a_declaration (int value):
+    int first, int second = value  // error: expected 2 value(s), got 1
+    return first + second
+
+
+def int values_left_unused ():
+    one()  // error: the call returns 1 value(s) that are not used
+    return 0
+
+
+def int values_left_unused_by_a_catch (int value):
+    fallible(value) catch failure:  // error: the call returns 1 value(s) that are not used
+        return 0
+    return 0
+
+
+// What is called.
+def int a_field_called (Point point):
+    return point.x()  // error: only a function or a type can be called
+
+
+def int a_call_called ():
+    return one()()  // error: only a function or a type can be called
+
+
+def int an_unknown_function ():
+    return missing_function(1)  // error: undefined function 'missing_function'
+
+
+def int a_variable_called (int value):
+    return value(1)  // error: 'value' is not a function
+
+
+// What is handed over.
+def int too_many_arguments ():
+    return one(1)  // error: expected 0 argument(s), got 1
+
+
+def int an_argument_of_another_type (bool flag):
+    return takes_int(flag)  // error: argument 1 should be int, got bool
+
+
+def int a_struct_of_the_same_shape ():
+    return takes_point(Pair(1, 2))  // error: argument 1 should be Point, got Pair
+
+
+def int a_ref_where_a_value_is_taken (int value):
+    return takes_int(ref value)  // error: argument 1 is not a ref parameter
+
+
+def int a_value_where_a_ref_is_taken (Point point):
+    return takes_ref(point)  // error: argument 1 must be passed with 'ref'
+
+
+def Point too_few_fields ():
+    return Point(1)  // error: 'Point' has 2 field(s), got 1 value(s)
+
+
+def Point a_field_of_another_type ():
+    return Point(1, true)  // error: field 'y' of 'Point' is int, got bool
+
+
+// What comes back.
+def (int, int) a_relay_of_the_wrong_count ():
+    return one()  // error: 'a_relay_of_the_wrong_count' returns 2 value(s), the call gives 1
+
+
+def (int, bool) a_relay_of_the_wrong_type ():
+    return two()  // error: value 2 of the call is int, bool is expected
+
+
+def (uint, int) a_relay_of_the_wrong_type_to_uint ():
+    return two()  // error: value 1 of the call is int, uint is expected
+
+
+def int a_return_of_another_type ():
+    return true  // error: cannot return bool where int is expected
+
+
+def () a_return_where_none_is_expected ():
+    return 1  // error: 'a_return_where_none_is_expected' returns 0 value(s), got 1
+
+
+def (int, bool) a_returned_value_of_another_type ():
+    return 1, 2  // error: cannot return int where bool is expected

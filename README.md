@@ -6,7 +6,7 @@ It was written for [BluePods](https://github.com/clemsix6/BluePods), a decentral
 
 A compiled BlueCode file is a module: a freestanding ELF object for one CPU that holds code and nothing else, and a manifest that says how to call it. No data section, no relocation, no libc, no imports. The same object runs on Linux and on macOS. The Go runtime in this repository copies it into executable memory and calls its entry points through a short assembly trampoline. Arguments and results sit in plain memory, in the layout a Go struct with the same fields already has, and any language that can call a C function can host a module the same way.
 
-Two directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a module and calls it. The examples in `Compiler/examples/` are the language's specification: each feature is shown in one of them and the runtime's tests run them all.
+Three directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a module and calls it. `Tests/`, also in Go, holds the corpus: the programs in `Tests/programs/` are the language's specification, each feature shown in one of them, and the harness there compiles and runs every one of them for both CPUs.
 
 ## Where it fits
 
@@ -100,24 +100,24 @@ Memory is owned. There is no garbage collector, no reference count and no arena.
 
 `state` declares what a module keeps from one call to the next. The state, and the memory `own` values are allocated from, live in an instance the host creates. The queue above is filled by one call and emptied by another. Only functions marked `external` can be called from the host, and their signatures take and return plain values. An `own` value, a ref into the module's memory or a pointer of any kind never crosses.
 
-The files under `Compiler/examples/errors/` go through every rule the compiler enforces, one case each:
+The files under `Tests/programs/errors/` go through every rule the compiler enforces, one case each:
 
 ```
-ownership.bc:36:10: error: 'node' was moved
+ownership.bc:28:10: error: 'node' was moved
 ownership.bc:42:14: error: 'node' is moved inside a loop
 ownership.bc:47:10: error: cannot move out of a field: take a ref into it, or take it with 'take'
 ```
 
 ## From a source file to a module
 
-The compiler prints LLVM IR on standard output and writes no file. The justfile it ships in `Compiler/dist/` pipes that output into clang, and `just publish` lays the justfile and the examples next to the single-file binary:
+The compiler prints LLVM IR on standard output and writes no file. The justfile it ships in `Compiler/dist/` pipes that output into clang, and `just publish` lays the justfile next to the single-file binary:
 
 ```bash
-cd Compiler && just publish
-cd bin/Release/net10.0/osx-arm64/publish
-just pod examples/bank.bc aarch64    # bank.aarch64.o and bank.json, next to the source
-just pod examples/bank.bc x86_64
-just ll examples/bank.bc             # the IR, to read
+just publish
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/external.bc aarch64    # external.aarch64.o and external.json, next to the source
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/external.bc x86_64
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile ll Tests/programs/external.bc              # the IR, to read
+just test
 ```
 
 The `pod` recipe runs clang at `-O2` in freestanding mode with jump tables and vectorization turned off. Either would create a constant pool, which needs a data section and a relocation, and the loader accepts neither. The recipe also asks clang to record every function's stack frame in a section of the object, which is how the runtime knows how much stack a module needs.
@@ -178,14 +178,15 @@ var results struct {
 gasLeft, err := transfer.Call(unsafe.Pointer(&args), unsafe.Pointer(&results), 1_000_000)
 ```
 
-A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the module recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a payroll that caught an insufficient balance and raised its own error instead:
+A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the module recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a group booking that caught a refused reservation and raised its own error, twice:
 
 ```
-PayrollUnfunded
-    error_handling.bc:74 pay_salary
-caused by Insufficient
-    error_handling.bc:35 withdraw
-    error_handling.bc:55 transfer
+Abandoned
+    errors.bc:87 booked_for_a_group
+caused by Rejected
+    errors.bc:79 take_seats
+caused by Refused
+    errors.bc:19 reserve
 ```
 
 A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the module allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the module may own, calls through it, reads how many bytes the pod holds with `Live`, and closes it when done. An instance runs one call at a time. A module's functions can be called from any number of goroutines on separate instances.
@@ -236,6 +237,6 @@ The compiler, the object format, the manifest and the runtime are complete for t
 
 - Gas is threaded through every call and checked, but nothing charges it yet. The cost table that makes each block of code pay is the next piece. For BluePods it is a consensus rule, so it gets designed with the network rather than here.
 - There are no arrays. The only memory of variable size is a structure of owned structs, like the queue and the tree in the examples.
-- Every example is compiled for both CPUs, but the x86_64 objects have only been built, never run. The runtime is vetted for amd64 and tested on arm64.
+- Every program is compiled and structurally verified for both CPUs, but the x86_64 objects are never executed. The runtime is vetted for amd64 and tested on arm64.
 - An instance lives in memory. Persisting a module's state to disk and loading it back is not done.
 - The Go library is the only host written so far. The object format and the manifest are all another one needs, and the hosting chapter of the reference is written for that.
