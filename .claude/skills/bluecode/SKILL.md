@@ -14,20 +14,21 @@ floating point, no strings, no arrays, no pointers, no globals other than `state
 way for the code to call the host. Determinism, checked arithmetic, bounded depth and memory
 and a trace on every failure are properties of the language, not of a runtime around it.
 
-Each chapter below is written to be read on its own. The first five state the language, what
+Each chapter below is written to be read on its own; the paths are from the root of the
+BlueCode repository, and the same files are indexed for a human reader in `docs/SUMMARY.md`. The first five state the language, what
 the compiler accepts, what it refuses and with which message, and end with a table of those
 messages. The last two are the embedding specification: a host in any language can be
 written from them.
 
 | Chapter | Covers |
 |---|---|
-| [syntax.md](syntax.md) | file layout, indentation, comments, literals, operators, statements, scope |
-| [types.md](types.md) | int, uint, bool, structs, construction, casts, layout, several results |
-| [functions.md](functions.md) | def, external, parameters, ref, ref variables, calls, return |
-| [errors.md](errors.md) | error, !, try, catch, traces, faults |
-| [ownership.md](ownership.md) | own, new, none, take, moves, drops, bindings, the frozen rule, state |
-| [modules.md](modules.md) | the pipeline, the object and its checks, the manifest, layouts |
-| [hosting.md](hosting.md) | the entry signature, stack, trace, instance, gas, failure protocol, writing a host, the Go library |
+| [syntax.md](docs/language/syntax.md) | file layout, indentation, comments, literals, operators, statements, scope |
+| [types.md](docs/language/types.md) | int, uint, bool, structs, construction, casts, layout, several results |
+| [functions.md](docs/language/functions.md) | def, external, parameters, ref, ref variables, calls, return |
+| [errors.md](docs/language/errors.md) | error, !, try, catch, traces, faults |
+| [ownership.md](docs/language/ownership.md) | own, new, none, take, moves, drops, bindings, the frozen rule, state |
+| [modules.md](docs/language/modules.md) | the pipeline, the object and its checks, the manifest, layouts |
+| [hosting.md](docs/language/hosting.md) | the entry signature, stack, trace, instance, gas, failure protocol, writing a host, the Go library |
 
 The programs under `Tests/programs/` are the executable specification and show every
 feature in use; `Tests/programs/errors/` holds the refused cases with the message as a

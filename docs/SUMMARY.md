@@ -4,7 +4,6 @@
 
 # The language
 
-- [Overview](language/SKILL.md)
 - [Syntax](language/syntax.md)
 - [Types](language/types.md)
 - [Functions and refs](language/functions.md)

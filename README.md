@@ -189,7 +189,7 @@ caused by Refused
     errors.bc:19 reserve
 ```
 
-A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the module allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the module may own, calls through it, reads how many bytes the pod holds with `Live`, and closes it when done. An instance runs one call at a time. A module's functions can be called from any number of goroutines on separate instances.
+A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the module allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the module may own, calls through it, reads how many bytes the module holds with `Live`, and closes it when done. An instance runs one call at a time. A module's functions can be called from any number of goroutines on separate instances.
 
 ```go
 instance, err := pod.NewInstance(bluecode.DefaultHeapSize)
@@ -205,7 +205,7 @@ if _, err := instance.Call(enqueue, unsafe.Pointer(&args), nil, 1_000_000); err 
 }
 ```
 
-The cost of a call is a feature, and `just bench` measures it after every change to the call path. On an Apple M3 Max a call into a module costs about 11 ns and allocates nothing, whether or not the function is one that can fail. A call that does fail costs a few tens of nanoseconds more, for the trace it writes and the Failure value the host receives. That is the whole price of the boundary. A host can call a module inside a loop the way it would call a closure.
+The cost of a call is a feature, and `just bench` measures it after every change to the call path. On an Apple M3 Max a call into a module costs about 11 ns and allocates nothing, whether or not the function is one that can fail. A call that does fail costs about 50 ns and two small allocations on the Go side, for the trace it writes and the Failure value the host receives. That is the whole price of the boundary. A host can call a module inside a loop the way it would call a closure.
 
 ## What a host can rely on
 
@@ -229,7 +229,7 @@ The reference lives in [docs/](docs/SUMMARY.md), one chapter per aspect of the l
 
 - [Syntax](docs/language/syntax.md), [types](docs/language/types.md), [functions and refs](docs/language/functions.md), [errors and faults](docs/language/errors.md), [ownership and state](docs/language/ownership.md).
 - [Modules](docs/language/modules.md), the object and the manifest, and [hosting a module](docs/language/hosting.md), everything a host in any language has to do.
-- [SKILL.md](docs/language/SKILL.md) is the same reference packaged as a skill for coding agents, with the rules that trip people up first.
+- [.claude/skills/bluecode/SKILL.md](.claude/skills/bluecode/SKILL.md) is the index a coding agent loads, with the rules that trip people up first; it is active as a skill in this repository.
 
 ## Where it stands
 
