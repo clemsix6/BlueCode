@@ -1,0 +1,45 @@
+/// Names declared twice, and names used as the wrong kind of thing.
+
+struct Point:
+    int x
+    int x  // error: struct 'Point' already has a field 'x'
+
+
+struct Point:  // error: 'Point' is already declared
+    int y
+
+
+state uint count
+state uint count  // error: 'count' is already declared
+
+
+def int twice (int a, int a):  // error: duplicate parameter 'a'
+    return a
+
+
+def int twice (int a):  // error: 'twice' is already declared
+    return a
+
+
+def int function_as_value ():
+    return twice  // error: 'twice' is a function, not a value
+
+
+def int type_as_value ():
+    return Point  // error: 'Point' is a type, not a value
+
+
+def int variable_called (int x):
+    return x(1)  // error: 'x' is not a function
+
+
+def count not_a_type (int x):  // error: 'count' is not a type
+    return x
+
+
+def int too_large ():
+    return 9223372036854775808  // error: integer literal is too large for int
+
+
+def () optional_struct (Point? p):  // error: only an own can be optional: write 'own T?'
+    return

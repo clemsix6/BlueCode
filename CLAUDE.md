@@ -6,8 +6,9 @@
 
 A programming language for BluePods pods, with its compiler (`Compiler/`, C# on .NET,
 `.bc` → LLVM IR) and the host runtime that runs the compiled pods (`Runtime/`, pure Go).
-The language exists to serve BluePods: every design choice is judged on determinism, gas
-metering and the cost of calling a pod from the host.
+The language is made to be embedded wherever a program runs code on someone else's behalf;
+BluePods is its first user and sets the priorities, so every design choice is judged on
+determinism, gas metering and the cost of calling a pod from the host.
 
 ## Hard constraints
 
@@ -52,6 +53,16 @@ drives the pod.
 Workflow: `just test` at the root is the whole check — it publishes the compiler and runs
 everything from there; `just bench` too when the call path moves — the per-call cost is a
 feature.
+
+## The reference follows the language
+
+`docs/language/` is the reference: one file per aspect stating what the compiler accepts,
+what it refuses and with which message, with `SKILL.md` as the index an agent loads. It is
+part of the definition of done: a change to the language, a new rule, a new or reworded
+diagnostic, is not finished until the reference says it, in the same PR. `just docs/check`
+compiles every `bluecode` block of the reference and checks that every diagnostic it quotes
+is one the error programs produce, so a documented refusal always has a program in the
+corpus. The README is the pitch, never the reference.
 
 ## Working with the owner
 

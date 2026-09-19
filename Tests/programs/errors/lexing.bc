@@ -1,0 +1,18 @@
+/// Characters and lines the lexer refuses: the compiler must report each one.
+
+def int tab (int x):
+    return x +	1  // error: tabs are not allowed, use spaces
+
+
+def int stray (int x):
+    return x @ 1  // error: unexpected character '@'  // error: unexpected token at the end of the line
+
+
+def int hex (int x):
+    return 0x10  // error: unexpected token at the end of the line
+
+
+def int dedent (int x):
+    if x > 0:
+        return 1
+      return 2  // error: unindent does not match any outer indentation level

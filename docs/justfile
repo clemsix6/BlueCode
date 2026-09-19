@@ -1,0 +1,48 @@
+set quiet
+
+compiler := "../Compiler/bin/Release/net10.0/osx-arm64/publish/Compiler"
+errors := "../Tests/programs/errors"
+
+# Checks the language reference against the compiler: every bluecode block compiles, every quoted diagnostic is one the error programs produce.
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
+    status=0
+
+    # A ```bluecode block is a complete program and must compile.
+    for doc in language/*.md; do
+        awk -v out="$work/$(basename "$doc" .md)" '
+            /^```bluecode$/ { n++; file = out "." n ".bc"; open = 1; next }
+            /^```/ && open  { close(file); open = 0; next }
+            open            { print > file }
+        ' "$doc"
+    done
+    for program in "$work"/*.bc; do
+        if ! {{compiler}} "$program" > /dev/null 2> "$work/diagnostics"; then
+            echo "$(basename "$program"): does not compile"
+            sed 's/^/    /' "$work/diagnostics"
+            status=1
+        fi
+    done
+
+    # A message quoted in a "Refused" table must be one the error programs make the compiler
+    # say. Quoted names and numbers are wildcards on both sides.
+    normalize() { sed -E "s/'[^']*'/'_'/g; s/[0-9]+/N/g"; }
+    for program in {{errors}}/*.bc; do
+        {{compiler}} "$program" 2>&1 > /dev/null || true
+    done | sed -E 's/^.*: error: //' | normalize | sort -u > "$work/produced"
+    awk '
+        /^## Refused/ { on = 1; next }
+        /^## /        { on = 0 }
+        on && /^\| `/ { sub(/^\| `/, ""); sub(/` \|.*$/, ""); print }
+    ' language/*.md | normalize | sort -u > "$work/quoted"
+    missing=$(comm -23 "$work/quoted" "$work/produced")
+    if [ -n "$missing" ]; then
+        echo "quoted by the reference, produced by no error program:"
+        echo "$missing" | sed 's/^/    /'
+        status=1
+    fi
+
+    exit $status
