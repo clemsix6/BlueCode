@@ -1,0 +1,130 @@
+/// Every way a ref can be misused: the compiler must reject each one. A ref never leaves the
+/// call that made it, it is bound once to a place that exists, and the place it names is
+/// frozen while it lives.
+
+struct Account:
+    uint id
+    uint balance
+
+
+struct Node:
+    uint value
+    own Node? next
+
+
+struct Holder:
+    own Node? held
+    uint count
+
+
+struct Wallet:
+    ref Account owner  // error: a struct field cannot be a ref
+
+
+state ref Account treasury  // error: a state variable cannot be a ref
+
+
+def () bump (ref uint n):
+    n = n + 1
+
+
+def () deposit (ref Account account, uint amount):
+    account.balance = account.balance + amount
+
+
+def () hold (ref Node node):
+    node.value = 0
+
+
+def () keep (own Node tree):
+    return
+
+
+def uint fresh_id ():
+    return 7
+
+
+def (uint, uint) pair (uint n):
+    return n, n
+
+
+// A ref never crosses a return
+
+def ref Account pick (Account account):  // error: a function cannot return a ref
+    return account
+
+
+def (ref uint, uint) picked_pair (uint n):  // error: a function cannot return a ref
+    return n, n
+
+
+// A ref is only taken where one is expected, and only on a place
+
+def () missing_ref (Account account):
+    deposit(account, 100)  // error: argument 1 must be passed with 'ref'
+
+
+def () ref_on_a_value_parameter (Account account, uint amount):
+    deposit(ref account, ref amount)  // error: argument 2 is not a ref parameter
+
+
+def () ref_to_a_value ():
+    bump(ref fresh_id())  // error: 'ref' needs a variable or a field, not a value
+
+
+def uint ref_in_an_expression (uint n):
+    uint m = ref n  // error: 'ref' is only allowed on a call argument or in a ref declaration
+    return m
+
+
+def () ref_rebound (uint n, uint other):
+    ref uint m = ref n
+    m = ref other  // error: 'ref' is only allowed on a call argument or in a ref declaration
+
+
+def uint ref_returned (uint n):
+    return ref n  // error: 'ref' is only allowed on a call argument or in a ref declaration
+
+
+// A ref variable is bound once, on its own, with 'ref'
+
+def () ref_variable_without_ref (uint n):
+    ref uint m = n  // error: a ref variable must be bound with 'ref'
+
+
+def () ref_variable_among_others (uint n):
+    ref uint a, uint b = pair(n)  // error: a ref variable must be declared on its own
+
+
+def () or_binding_without_ref (Holder holder):
+    ref Node first = holder.held or:  // error: a ref variable must be bound with 'ref'
+        return
+    first.value = 0
+
+
+def () ref_into_an_optional (Node node):
+    hold(ref node.next)  // error: own Node? may be none: bind it with 'if ref' or 'or:' first
+
+
+// The place a ref names is frozen while it lives
+
+def () move_while_frozen (own Node tree):
+    ref uint value = ref tree.value
+    keep(tree)  // error: cannot move 'tree' while 'value' refers into it
+
+
+def uint assign_while_frozen (uint n):
+    uint total = n
+    ref uint inner = ref total
+    total = 0  // error: cannot assign 'total' while 'inner' refers into it
+    return inner
+
+
+def () pass_by_ref_while_frozen (uint n):
+    ref uint inner = ref n
+    bump(ref n)  // error: cannot pass by ref 'n' while 'inner' refers into it
+
+
+def () take_while_frozen (Holder holder):
+    ref Holder alias = ref holder
+    own Node? gone = take holder.held  // error: cannot take 'holder.held' while 'alias' refers into it
