@@ -1,0 +1,60 @@
+/// The boundary: only an external function has a symbol and a place in the host's reach.
+/// Its parameters form one block in declaration order, a ref among them taking its full size
+/// inline so the host reads back what the pod wrote; its return values form another, with the
+/// error last when the function can fail. No parameter, or no value, means a block of no bytes.
+
+error Closed
+
+
+error Overdrawn
+
+
+struct Ledger:
+    uint total
+    uint count
+    bool closed
+
+
+// An internal helper: no symbol, no entry, the host cannot reach it.
+def uint fee (uint amount):
+    return amount / 100
+
+
+// A ref parameter sits inline at full size, between the values declared around it.
+external def uint record (uint before, ref Ledger ledger, uint amount):
+    ledger.total = ledger.total + amount - fee(amount)
+    ledger.count = ledger.count + 1
+    return before + ledger.count
+
+
+// Nothing to give back: the results block is empty and the host may pass nothing for it.
+external def () close (ref Ledger ledger):
+    ledger.closed = true
+
+
+// Nothing to take and nothing to give: both blocks are empty.
+external def () nothing ():
+    return
+
+
+// A failure adds one field at the end of the results, after every value.
+external def (uint, uint)! split (Ledger ledger, uint amount):
+    if ledger.closed:
+        return error.Closed
+    if amount > ledger.total:
+        return error.Overdrawn
+    return amount - fee(amount), fee(amount)
+
+
+// A function that can fail and returns nothing: its results are the error alone.
+external def ()! check (Ledger ledger):
+    if ledger.closed:
+        return error.Closed
+    return
+
+
+// Bools and structs by value cross as copies; a struct that owns nothing is just bytes.
+external def bool usable (Ledger ledger, bool require_empty):
+    if ledger.closed:
+        return false
+    return not require_empty or ledger.count == 0
