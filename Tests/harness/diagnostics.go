@@ -48,6 +48,10 @@ func Diagnostics(t testing.TB, program string) {
 	}
 
 	compare(t, program, got, want)
+
+	if !t.Failed() {
+		t.Logf("%s: %d diagnostics, all matched a marker; %d markers, all matched by a diagnostic", program, len(got), len(want))
+	}
 }
 
 // compileForDiagnostics runs the compiler alone on a source and reads back what it reported. A

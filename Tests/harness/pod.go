@@ -1,6 +1,8 @@
 package harness
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 
 	"bluecode/runtime"
@@ -10,7 +12,7 @@ import (
 func Build(t testing.TB, program string) *bluecode.Pod {
 	t.Helper()
 
-	artifacts := Compile(t, program)
+	artifacts, fresh := compile(t, program)
 
 	pod, err := bluecode.Load(artifacts.Native, artifacts.Manifest)
 	if err != nil {
@@ -18,6 +20,11 @@ func Build(t testing.TB, program string) *bluecode.Pod {
 	}
 
 	t.Cleanup(func() { pod.Close() })
+
+	if fresh {
+		t.Logf("%s: compiled for %s, both objects verified, loaded for %s with a %d-byte stack",
+			program, strings.Join(architectures, " and "), cpus[runtime.GOARCH], pod.StackSize())
+	}
 
 	return pod
 }
