@@ -1,0 +1,115 @@
+/// A "state" variable lives in the instance the host created, not in the call: what one call
+/// writes the next one finds, two instances know nothing of each other, and a call made without
+/// an instance starts from a zeroed state. A state variable is a place and never a value: a ref
+/// reaches into it and "take" moves a value out of it, but reading it would move the instance's
+/// memory away. What it owns the pod never frees on its own — assigning the place does, and so
+/// does the host closing the instance.
+
+struct Point:
+    int x
+    int y
+
+
+/// A struct that owns may be state too, and then the instance owns what it holds.
+struct Holder:
+    uint tag
+    own Point? point
+
+
+error Refused
+
+
+state uint counter
+state bool armed
+state Point origin
+state own Point? held
+state Holder holder
+
+
+// Plain values.
+
+external def () bump (uint by):
+    counter = counter + by
+
+
+external def uint count ():
+    return counter
+
+
+external def () arm (bool on):
+    armed = on
+
+
+external def bool is_armed ():
+    return armed
+
+
+// A struct, reached by name and by ref.
+
+external def () move_origin (int x, int y):
+    origin = Point(x, y)
+
+
+/// A struct with nothing movable in it is copied, so the host may read the state as a result.
+external def Point origin_now ():
+    return origin
+
+
+def () shift (ref Point p, int by):
+    p.x = p.x + by
+    p.y = p.y + by
+
+
+/// A ref works on the state in place: nothing is moved out of it and nothing is copied back.
+external def () shift_origin (int by):
+    shift(ref origin, by)
+
+
+// An own the instance keeps.
+
+/// Assigning the place frees what it held, so the state never holds more than the last value.
+external def () keep (int x, int y):
+    held = new Point(x, y)
+
+
+external def (bool, int, int) held_now ():
+    if ref Point p = ref held:
+        return true, p.x, p.y
+    return false, 0, 0
+
+
+external def () forget ():
+    held = none
+
+
+/// "take" moves the value out and leaves none behind; the name that receives it frees it.
+external def bool take_held ():
+    if own Point p = take held:
+        return true
+    return false
+
+
+// A struct that owns, as state.
+
+external def () fill_holder (uint tag, int x, int y):
+    holder.tag = tag
+    holder.point = new Point(x, y)
+
+
+external def (uint, bool, int) holder_now ():
+    if ref Point p = ref holder.point:
+        return holder.tag, true, p.x
+    return holder.tag, false, 0
+
+
+external def () empty_holder ():
+    holder.point = none
+
+
+// State and failure.
+
+/// A failure is not a rollback: the state is the instance's, and what the call wrote before
+/// giving up is what the next call finds.
+external def ()! bump_then_refuse (uint by):
+    counter = counter + by
+    return error.Refused

@@ -1,8 +1,8 @@
 .DS_Store
 .idea/
 .junie/
+.claude/worktrees/
 bin/
 obj/
 *.o
-Compiler/examples/*.json
-Runtime/testdata/
+Tests/build/

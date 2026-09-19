@@ -1,0 +1,30 @@
+/// Nothing that owns memory crosses to the host: it would carry an address into the pod.
+/// An external function may take or return neither an own, nor an optional own, nor a plain
+/// struct that holds one somewhere inside it, by value or by ref.
+
+struct Node:
+    int value
+
+
+struct Holder:
+    own Node? node
+
+
+external def () takes_an_own (own Node node):  // error: 'takes_an_own' is external: it cannot take or return an own
+    return
+
+
+external def own Node gives_an_own ():  // error: 'gives_an_own' is external: it cannot take or return an own
+    return new Node(1)
+
+
+external def () takes_an_optional_own (own Node? node):  // error: 'takes_an_optional_own' is external: it cannot take or return an own
+    return
+
+
+external def Holder carries_a_struct_that_owns (Holder holder):  // error: 'carries_a_struct_that_owns' is external: it cannot take or return an own
+    return holder
+
+
+external def () takes_that_struct_by_ref (ref Holder holder):  // error: 'takes_that_struct_by_ref' is external: it cannot take or return an own
+    holder.node = none

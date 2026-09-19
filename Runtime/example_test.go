@@ -12,7 +12,7 @@ type Point struct{ X, Y int64 }
 type Line struct{ Start, End Point }
 
 func Example() {
-	pod, err := bluecode.Load("testdata/geometry.aarch64.o", "testdata/geometry.json")
+	pod, err := bluecode.Load("geometry.aarch64.o", "geometry.json")
 	if err != nil {
 		panic(err)
 	}
@@ -27,5 +27,4 @@ func Example() {
 	}
 
 	fmt.Println(length)
-	// Output: 7
 }

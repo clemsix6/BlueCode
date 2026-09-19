@@ -1,0 +1,126 @@
+/// Every way ownership can be misused. A value is moved, not copied, so reading it twice is a
+/// mistake; a field and a ref are places, not values, so nothing is moved out of them; and an
+/// own that may be none has to be bound before it is reached through. One mistake often breaks
+/// a second rule, and then both diagnostics are demanded.
+
+struct Point:
+    int x
+    int y
+
+
+struct Node:
+    int value
+    own Node? next
+
+
+def own Node leaf (int value):
+    return new Node(value, none)
+
+
+def () keep (own Node node):
+    return
+
+
+// Moves.
+
+def () used_after_move (own Node node):
+    keep(node)
+    keep(node)  // error: 'node' was moved
+
+
+/// A branch that does not leave the function contributes its moves to what follows it.
+def () moved_in_a_branch (own Node node, bool early):
+    if early:
+        keep(node)
+    keep(node)  // error: 'node' was moved
+
+
+/// The next round would find the value gone, so the move is reported where it is written.
+def () moved_in_a_loop (own Node node, int rounds):
+    int i = 0
+    while i < rounds:
+        keep(node)  // error: 'node' is moved inside a loop
+        i = i + 1
+
+
+def () moved_out_of_a_field (ref Node node):
+    keep(node.next)  // error: cannot move out of a field: take a ref into it, or take it with 'take' // error: argument 1 should be own Node, got own Node?
+
+
+def () moved_out_of_a_ref (ref Node node):
+    keep(node)  // error: cannot move out of ref 'node' // error: argument 1 should be own Node, got Node
+
+
+/// A fresh value owns memory, so it has a place of its own before anything reads its fields.
+def int fields_of_a_fresh_value ():
+    return leaf(1).value  // error: a value that owns memory has to be kept in a variable before its fields are read
+
+
+// What may be owned, and what "new" builds.
+
+def () own_of_an_int ():
+    own int n = new int(1)  // error: only a struct can be owned, not int // error: 'int' is not a struct
+
+
+def () new_of_a_function ():
+    own Node n = new leaf(1)  // error: 'leaf' is not a struct
+
+
+def () none_into_a_plain_own ():
+    own Node node = none  // error: cannot assign none to 'node' of type own Node
+
+
+def () own_value_into_a_plain_struct ():
+    Point x = new Point(1, 2)  // error: cannot assign own Point to 'x' of type Point
+
+
+// Binding an own that may be none.
+
+def () bound_from_a_plain_own (own Node node):
+    if ref Node same = ref node:  // error: expected an own that may be none, got Node
+        return
+
+
+def () bound_to_the_wrong_type (ref Node tree):
+    if ref Point child = ref tree.next:  // error: cannot bind Node to 'child' of type Point
+        return
+
+
+def () bound_own_to_the_wrong_type (ref Node tree):
+    if own Point child = take tree.next:  // error: cannot bind own Node to 'child' of type own Point
+        return
+
+
+def () or_value_not_optional (ref Node tree):
+    ref Node c = ref tree.value or:  // error: expected an own that may be none, got int
+        return
+
+
+def () or_binding_two_names (ref Node tree):
+    ref Node a, ref Node b = ref tree.next or:  // error: a declaration with 'or:' binds one name
+        return
+    a.value = 0
+
+
+/// The block runs when there is nothing to bind, so the name that follows it is always bound.
+def () or_block_that_stays (ref Node tree):
+    ref Node child = ref tree.next or:  // error: the 'or:' block must leave the function
+        tree.value = 0
+    tree.value = child.value
+
+
+// Taking a value out of a place.
+
+def () take_of_a_call ():
+    own Node? taken = take leaf(1)  // error: 'take' needs a variable or a field
+
+
+def () take_of_a_plain_own (own Node node):
+    own Node? taken = take node  // error: 'take' needs an optional own, got own Node
+
+
+/// "or:" belongs to a declaration; after an assignment the line simply ends, and the block the
+/// next line opens belongs to nothing.
+def () or_on_an_assignment (ref Node tree):
+    tree.next = take tree.next or:  // error: unexpected token at the end of the line
+        return  // error: unexpected indentation

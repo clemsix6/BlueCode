@@ -1,0 +1,51 @@
+/// What the lexer refuses before any grammar is involved: characters the language has no
+/// spelling for, a dedent that lines up with no open block, and a tab.
+/// The rest of the file is the shapes that look like a literal or a comment in another
+/// language and are read here as several ordinary tokens, so the mistake surfaces as a
+/// grammar one a line or two later.
+
+def int unknown_character (int a, int b):
+    return a & b  // error: unexpected character '&' // error: unexpected token at the end of the line
+
+
+def int two_unknown_characters (int a, int b):
+    return a && b  // error: unexpected character '&' // error: unexpected character '&' // error: unexpected token at the end of the line
+
+
+def int compound_assignment (int a):
+    int total = 0
+    total += a  // error: only a variable or a field can be assigned // error: expected an expression
+    return total
+
+
+def int shift (int a):
+    return a << 2  // error: cannot return bool where int is expected // error: expected an expression // error: operator '<' cannot mix bool and int
+
+
+def int hexadecimal ():
+    return 0x10  // error: unexpected token at the end of the line
+
+
+def int digit_separator ():
+    return 1_000  // error: unexpected token at the end of the line
+
+
+def int block_comment (int a):
+    int n = a /* 2 */ + 3  // error: expected an expression // error: expected an expression // error: expected an expression
+    return n
+
+
+def int no_line_continuation (int a):
+    return (a +  // error: expected an expression // error: expected ')'
+        1)  // error: unexpected indentation
+
+
+def int misaligned_dedent (int a):
+    if a > 0:
+            a = a + 1
+       a = a + 2  // error: unindent does not match any outer indentation level
+    return a
+
+
+def int tabbed (int a):  // error: not all paths of 'tabbed' return a value
+	return a  // error: tabs are not allowed, use spaces // error: expected an indented block // error: expected 'struct', 'error', 'state' or 'def'
