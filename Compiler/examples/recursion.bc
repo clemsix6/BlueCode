@@ -1,0 +1,32 @@
+/// Functions may call themselves, and call functions declared below them.
+
+external def uint fibonacci (uint n):
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+
+external def uint gcd (uint a, uint b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)
+
+
+external def bool is_even (uint n):
+    if n == 0:
+        return true
+    return is_odd(n - 1)
+
+
+def bool is_odd (uint n):
+    if n == 0:
+        return false
+    return is_even(n - 1)
+
+
+external def uint ackermann (uint m, uint n):
+    if m == 0:
+        return n + 1
+    if n == 0:
+        return ackermann(m - 1, 1)
+    return ackermann(m - 1, ackermann(m, n - 1))

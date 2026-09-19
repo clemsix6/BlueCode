@@ -1,0 +1,68 @@
+/// Closer to a pod: accounts, a fee schedule, transfers that can fail.
+/// Every amount is a uint, so an underflow has to be caught before it happens.
+/// Accounts are taken by ref: a successful operation changes the caller's account,
+/// a failed one leaves it untouched.
+
+struct Account:
+    uint id
+    uint balance
+    bool frozen
+
+
+struct Fees:
+    uint flat
+    uint per_thousand
+
+
+def uint fee_for (Fees fees, uint amount):
+    return fees.flat + amount / 1000 * fees.per_thousand
+
+
+def bool can_withdraw (Account account, uint amount):
+    if account.frozen:
+        return false
+    return account.balance >= amount
+
+
+external def bool withdraw (ref Account account, uint amount, Fees fees):
+    uint total = amount + fee_for(fees, amount)
+    if not can_withdraw(account, total):
+        return false
+    account.balance = account.balance - total
+    return true
+
+
+external def bool deposit (ref Account account, uint amount):
+    if account.frozen:
+        return false
+    account.balance = account.balance + amount
+    return true
+
+
+/// A withdrawal from one account, then a deposit on the other. Both are checked before
+/// anything is written, so a refused transfer changes neither account.
+external def bool transfer (ref Account from, ref Account to, uint amount, Fees fees):
+    if from.id == to.id or to.frozen:
+        return false
+    if not withdraw(ref from, amount, fees):
+        return false
+    return deposit(ref to, amount)
+
+
+/// Applies a percentage of interest, in basis points, without overflowing on large balances.
+external def uint apply_interest (uint balance, uint basis_points):
+    uint whole = balance / 10000 * basis_points
+    uint fraction = balance % 10000 * basis_points / 10000
+    return balance + whole + fraction
+
+
+/// Simulates n monthly cycles of interest then a fixed withdrawal, stops when the money runs out.
+external def (uint, uint) simulate (uint balance, uint monthly_withdrawal, uint basis_points, uint months):
+    uint month = 0
+    while month < months:
+        balance = apply_interest(balance, basis_points)
+        if balance < monthly_withdrawal:
+            return month, balance
+        balance = balance - monthly_withdrawal
+        month = month + 1
+    return month, balance

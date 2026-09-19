@@ -1,0 +1,31 @@
+/// What the code can not be allowed to do: divide by zero, or compute a value that does not
+/// fit. Neither is an error the program can catch: the call gives up with a fault, and the host
+/// gets a trace pointing at the line.
+
+external def uint divide (uint a, uint b):
+    return a / b
+
+
+external def int divide_signed (int a, int b):
+    return a / b
+
+
+external def uint add (uint a, uint b):
+    return a + b
+
+
+external def uint subtract (uint a, uint b):
+    return a - b
+
+
+external def uint multiply (uint a, uint b):
+    return a * b
+
+
+external def int negate (int x):
+    return -x
+
+
+/// A fault in a callee is a fault in the caller, whatever the caller was doing.
+external def uint average (uint total, uint count):
+    return divide(total, count)

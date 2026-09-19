@@ -1,0 +1,62 @@
+/// Every way a ref can be misused: the compiler must reject each one.
+
+struct Account:
+    uint id
+    uint balance
+
+
+struct Wallet:
+    ref Account owner
+
+
+def () bump (ref uint n):
+    n = n + 1
+
+
+def () deposit (ref Account account, uint amount):
+    account.balance = account.balance + amount
+
+
+def uint fresh_id ():
+    return 7
+
+
+def (uint, uint) pair (uint n):
+    return n, n
+
+
+def ref Account pick (Account account):
+    return account
+
+
+def () missing_ref (Account account):
+    deposit(account, 100)
+
+
+def () ref_on_a_value_parameter (Account account, uint amount):
+    deposit(ref account, ref amount)
+
+
+def () ref_to_a_value ():
+    bump(ref fresh_id())
+
+
+def () ref_variable_without_ref (uint n):
+    ref uint m = n
+
+
+def () ref_variable_among_others (uint n):
+    ref uint a, uint b = pair(n)
+
+
+def () ref_in_an_expression (uint n):
+    uint m = ref n
+
+
+def () ref_rebound (uint n, uint other):
+    ref uint m = ref n
+    m = ref other
+
+
+def uint ref_returned (uint n):
+    return ref n

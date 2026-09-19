@@ -1,0 +1,113 @@
+/// Every way memory ownership can be misused: the compiler must reject each one.
+
+struct Point:
+    int x
+    int y
+
+
+struct Node:
+    int value
+    own Node? next
+
+
+struct Loop:
+    Loop inner
+
+
+struct Line:
+    Point start
+    Point end
+
+
+def own Node leaf (int value):
+    return new Node(value, none)
+
+
+def () keep (own Node node):
+    return
+
+
+external def own Node crossing (int value):
+    return leaf(value)
+
+
+def () used_after_move (own Node node):
+    keep(node)
+    keep(node)
+
+
+def () moved_in_a_loop (own Node node, uint n):
+    uint i = 0
+    while i < n:
+        keep(node)
+        i = i + 1
+
+
+def () moved_out_of_a_field (ref Node node):
+    keep(node.next)
+
+
+def () moved_out_of_a_ref (ref Node node):
+    keep(node)
+
+
+def () frozen (ref Line line):
+    ref Point p = ref line.start
+    line.start = Point(0, 0)
+
+
+def () own_of_int ():
+    own int n = new int(1)
+
+
+def () none_to_a_plain_own ():
+    own Node node = none
+
+
+def () optional_field_read (ref Node node):
+    int v = node.next.value
+
+
+def () owns_compared (ref Node a, ref Node b):
+    bool same = a.next == b.next
+
+
+def () take_on_a_plain_own (own Node node):
+    own Node? taken = take node
+
+
+def int fresh_field_read ():
+    return leaf(1).value
+
+
+state own Node? root
+
+
+def () state_moved ():
+    keep(root)
+
+
+def () frozen_through_an_own (ref Node tree):
+    ref Node child = ref tree.next or:
+        return
+    tree.next = none
+
+
+def () or_block_that_stays (ref Node tree):
+    ref Node child = ref tree.next or:
+        tree.value = 0
+    tree.value = child.value
+
+
+def () bound_from_a_plain_own (own Node node):
+    if ref Node same = ref node:
+        return
+
+
+def () bound_to_the_wrong_type (ref Node tree):
+    if ref Point child = ref tree.next:
+        return
+
+
+def () state_by_ref (ref Node tree):
+    return

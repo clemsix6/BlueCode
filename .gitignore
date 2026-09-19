@@ -1,0 +1,8 @@
+.DS_Store
+.idea/
+.junie/
+bin/
+obj/
+*.o
+Compiler/examples/*.json
+Runtime/testdata/

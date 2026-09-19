@@ -1,0 +1,15 @@
+set quiet
+
+dotnet := home_directory() / ".dotnet/dotnet"
+output := "bin/Release/net10.0/osx-arm64/publish"
+
+# Builds the single-file compiler and lays the pod justfile and the examples next to it.
+publish:
+    {{dotnet}} publish Compiler.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -nologo -v:q
+    cp dist/justfile {{output}}/justfile
+    rm -rf {{output}}/examples && cp -r examples {{output}}/examples
+    echo "→ {{output}}"
+
+# Removes the build outputs.
+clean:
+    rm -rf bin obj

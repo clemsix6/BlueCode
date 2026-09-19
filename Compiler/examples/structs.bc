@@ -1,0 +1,45 @@
+/// Structs are plain values: passed by copy, fields read and written with a dot.
+
+struct Point:
+    int x
+    int y
+
+
+struct Rect:
+    Point origin
+    int width
+    int height
+
+
+external def int area (Rect r):
+    return r.width * r.height
+
+
+external def bool contains (Rect r, Point p):
+    bool in_x = p.x >= r.origin.x and p.x < r.origin.x + r.width
+    bool in_y = p.y >= r.origin.y and p.y < r.origin.y + r.height
+    return in_x and in_y
+
+
+external def int manhattan (Point a, Point b):
+    int dx = a.x - b.x
+    int dy = a.y - b.y
+    if dx < 0:
+        dx = -dx
+    if dy < 0:
+        dy = -dy
+    return dx + dy
+
+
+/// The parameter is a copy: the caller's rect is unchanged.
+external def int grow_and_measure (Rect r, int by):
+    r.width = r.width + by
+    r.height = r.height + by
+    return area(r)
+
+
+external def Point far_corner (Rect r):
+    Point corner = r.origin
+    corner.x = corner.x + r.width
+    corner.y = corner.y + r.height
+    return corner

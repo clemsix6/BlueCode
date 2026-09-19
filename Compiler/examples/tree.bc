@@ -1,0 +1,62 @@
+/// Values that own memory. "new" builds a struct in a block of the instance's heap and hands
+/// it to whoever receives it; the block is freed when its owner lets go: at the end of the
+/// block that declared the variable, when the field or variable holding it is assigned, or
+/// when the function that received it returns without passing it on.
+
+struct Point:
+    int x
+    int y
+
+
+/// A struct holding an own owns it in turn, and is never copied: only moved, or reached by ref.
+struct Segment:
+    own Point start
+    own Point end
+
+
+struct Bag:
+    own Segment? held
+
+
+/// Each point is freed at the end of the loop body, so the heap never holds more than one.
+external def int churn (uint n):
+    uint i = 0
+    int sum = 0
+    while i < n:
+        own Point p = new Point(int(i), 1)
+        sum = sum + p.x
+        i = i + 1
+    return sum
+
+
+def own Segment segment (int a, int b):
+    return new Segment(new Point(a, a), new Point(b, b))
+
+
+/// The segment and its two points are freed when the function returns.
+external def int length (int a, int b):
+    own Segment s = segment(a, b)
+    return s.end.x - s.start.x
+
+
+/// Assigning an own field frees what it held: the bag never holds more than one segment.
+external def uint replace (uint n):
+    Bag bag = Bag(none)
+    uint i = 0
+    while i < n:
+        bag.held = segment(1, 2)
+        i = i + 1
+    return i
+
+
+/// One point per nested call, all alive at the deepest one: enough of them and the heap is
+/// out of memory, which is a fault like any other.
+def uint deep (uint n):
+    own Point p = new Point(0, 0)
+    if n == 0:
+        return 1
+    return deep(n - 1) + 1
+
+
+external def uint hold (uint n):
+    return deep(n)

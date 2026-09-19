@@ -1,0 +1,3 @@
+/// The smallest possible program: one function, one constant.
+external def int answer ():
+    return 42

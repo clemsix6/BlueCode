@@ -1,0 +1,18 @@
+/// Broken syntax: the parser must recover and report every line.
+
+def int missing_colon (int x)
+    return x
+
+
+def int missing_paren (int x):
+    return (x + 1
+
+
+def int bad_indent (int x):
+    int y = x
+        int z = y
+    return z
+
+
+struct:
+    int x

@@ -1,0 +1,27 @@
+set quiet
+
+compiler := justfile_directory() / "Compiler"
+clang := "/opt/homebrew/opt/llvm/bin/clang -Wno-override-module"
+
+# Prints the LLVM IR of a source file.
+[no-cd]
+ll file:
+    {{compiler}} {{file}}
+
+# Prints the syntax tree of a source file.
+[no-cd]
+ast file:
+    {{compiler}} --ast {{file}} > /dev/null
+
+# Prints the JSON manifest of a source file.
+[no-cd]
+manifest file:
+    {{compiler}} --manifest {{file}}
+
+# Compiles a source file into a pod for one CPU: a freestanding object, the same file on Linux
+# and macOS, code only, with no data section and no relocation, which is why nothing may be
+# vectorized into a constant pool.
+[no-cd]
+pod file arch=arch():
+    {{compiler}} {{file}} | {{clang}} --target={{arch}}-linux-gnu -O2 -c -fno-jump-tables -fno-addrsig -fstack-size-section -fno-vectorize -fno-slp-vectorize {{ if arch == "aarch64" { "-ffixed-x18" } else { "" } }} -x ir - -o {{without_extension(file)}}.{{arch}}.o
+    {{compiler}} --manifest {{file}} > {{without_extension(file)}}.json

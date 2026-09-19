@@ -1,0 +1,25 @@
+set quiet
+
+publish := "../Compiler/bin/Release/net10.0/osx-arm64/publish"
+pods := "bank primes geometry recursion refs error_handling faults tree ownership queue"
+
+# Rebuilds testdata/ from the examples with the published compiler, for both CPUs.
+testdata:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p testdata
+    for pod in {{pods}}; do
+        for arch in aarch64 x86_64; do
+            just -f {{publish}}/justfile pod {{publish}}/examples/$pod.bc $arch
+        done
+        cp {{publish}}/examples/$pod.{aarch64,x86_64}.o {{publish}}/examples/$pod.json testdata/
+    done
+
+# Vets the runtime for both CPUs and runs the tests on the pods in testdata/.
+test:
+    go vet ./... && GOARCH=amd64 go vet ./...
+    go test ./...
+
+# Measures the per-call cost.
+bench:
+    go test -bench . -benchmem

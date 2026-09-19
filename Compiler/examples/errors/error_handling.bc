@@ -1,0 +1,77 @@
+/// Every way a failure can be mishandled: the compiler must reject each one.
+
+error Frozen
+error Frozen
+
+
+def uint! withdraw (uint balance, uint amount):
+    if balance < amount:
+        return error.Frozen
+    return balance - amount
+
+
+def () cannot_fail (uint balance):
+    return error.Frozen
+
+
+def uint plain (uint balance):
+    return balance
+
+
+def ()! reject ():
+    return error.Frozen
+
+
+def uint unknown_error (uint balance):
+    return error.Empty
+
+
+def uint try_without_bang (uint balance):
+    return try withdraw(balance, 10)
+
+
+def uint bare_fallible_call (uint balance):
+    return withdraw(balance, 10)
+
+
+def uint! bare_fallible_call_in_failing (uint balance):
+    uint left = withdraw(balance, 10)
+    return left
+
+
+def uint! try_on_infallible (uint balance):
+    return try plain(balance)
+
+
+def uint catch_on_infallible (uint balance):
+    uint left = plain(balance) catch 0
+    return left
+
+
+def uint catch_block_that_falls_through (uint balance):
+    uint left = withdraw(balance, 10) catch err:
+        balance = 0
+    return left
+
+
+def uint wrong_fallback (uint balance):
+    uint left = withdraw(balance, 10) catch true
+    return left
+
+
+def uint error_in_a_condition (uint balance):
+    uint left = withdraw(balance, 10) catch err:
+        if err:
+            return 0
+        return 1
+    return left
+
+
+def bool error_ordered (uint balance):
+    uint left = withdraw(balance, 10) catch err:
+        return err < err
+    return true
+
+
+def ()! catch_value_without_a_value ():
+    reject() catch 0

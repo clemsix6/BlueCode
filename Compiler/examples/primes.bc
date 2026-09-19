@@ -1,0 +1,42 @@
+/// Nested loops and early returns.
+
+def bool is_prime (uint n):
+    if n < 2:
+        return false
+    uint d = 2
+    while d * d <= n:
+        if n % d == 0:
+            return false
+        d = d + 1
+    return true
+
+
+external def uint count_primes (uint limit):
+    uint count = 0
+    uint n = 2
+    while n <= limit:
+        if is_prime(n):
+            count = count + 1
+        n = n + 1
+    return count
+
+
+external def uint nth_prime (uint n):
+    uint found = 0
+    uint candidate = 1
+    while found < n:
+        candidate = candidate + 1
+        if is_prime(candidate):
+            found = found + 1
+    return candidate
+
+
+external def uint largest_factor (uint n):
+    uint largest = 1
+    uint d = 2
+    while n > 1:
+        while n % d == 0:
+            largest = d
+            n = n / d
+        d = d + 1
+    return largest

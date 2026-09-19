@@ -1,0 +1,36 @@
+/// Operator precedence, unary minus, signed and unsigned division.
+
+external def int precedence ():
+    return 1 + 2 * 3 - 8 / 2 % 3   // 1 + 6 - (4 % 3) = 6
+
+
+external def int parentheses ():
+    return (1 + 2) * (3 - 8) / 2   // 3 * -5 / 2 = -7 (truncated)
+
+
+external def int negate (int x):
+    return -x
+
+
+external def int signed_div (int a, int b):
+    return a / b
+
+
+external def uint unsigned_div (uint a, uint b):
+    return a / b
+
+
+external def int signed_mod (int a, int b):
+    return a % b
+
+
+external def uint to_uint (int x):
+    return uint(x)
+
+
+external def int to_int (uint x):
+    return int(x)
+
+
+external def uint big ():
+    return 18446744073709551615
