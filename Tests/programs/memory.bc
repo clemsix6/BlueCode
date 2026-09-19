@@ -1,0 +1,120 @@
+/// The heap an instance carries cuts blocks in classes whose sizes double, so a value takes the
+/// smallest block that holds it and what the host sees live is the block and not the value.
+/// Freeing puts the block back on the list of its class and the next value of that class takes
+/// it again, so a loop that allocates and frees runs forever in one block. When no block is
+/// left the pod gives up on the line of the "new", and the trace names every call that waited.
+
+struct Small:
+    int a
+    int b
+
+
+struct Medium:
+    Small pair
+    int c
+
+
+struct Large:
+    Medium head
+    Small tail
+
+
+struct Exact:
+    Large head
+    Medium tail
+
+
+struct Over:
+    Exact head
+    int tail
+
+
+struct Link:
+    int value
+    own Link? next
+
+
+/// One slot per size, so the host can watch one class at a time.
+state own Small? small
+state own Medium? medium
+state own Large? large
+state own Exact? exact
+state own Over? over
+
+/// What survives the call, and how many links it holds.
+state own Link? parked
+state int parked_count
+
+
+// One value of each size, held until the host lets go.
+
+external def () hold_small ():
+    small = new Small(1, 2)
+
+
+external def () hold_medium ():
+    medium = new Medium(Small(1, 2), 3)
+
+
+external def () hold_large ():
+    large = new Large(Medium(Small(1, 2), 3), Small(4, 5))
+
+
+external def () hold_exact ():
+    exact = new Exact(Large(Medium(Small(1, 2), 3), Small(4, 5)), Medium(Small(6, 7), 8))
+
+
+external def () hold_over ():
+    over = new Over(Exact(Large(Medium(Small(1, 2), 3), Small(4, 5)), Medium(Small(6, 7), 8)), 9)
+
+
+external def () release ():
+    small = none
+    medium = none
+    large = none
+    exact = none
+    over = none
+
+
+// Reuse.
+
+/// Every round frees the block the round before took, so the heap never grows past one block
+/// however many rounds are asked for.
+external def int reuse (int rounds):
+    int i = 0
+    while i < rounds:
+        own Small cell = new Small(i, 1)
+        i = i + 1
+    return i
+
+
+// Running out.
+
+def own Small block (int value):
+    return new Small(value, value)
+
+
+/// Every call on the way down holds its block until the one below it returns, so the deepest
+/// call is where a heap too small for all of them gives up.
+def int stack_up (int n):
+    own Small held = block(n)
+    if n == 0:
+        return 1
+    return stack_up(n - 1) + 1
+
+
+external def int nest (int n):
+    return stack_up(n)
+
+
+// What a call without an instance finds.
+
+/// The links are parked in the state, so their memory outlives the call that built them — but
+/// only for a host that called on an instance of its own.
+external def int park (int n):
+    int i = 0
+    while i < n:
+        parked = new Link(i, take parked)
+        parked_count = parked_count + 1
+        i = i + 1
+    return parked_count
