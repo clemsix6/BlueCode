@@ -1,6 +1,17 @@
 # Ownership and state
 
-## own and new
+Most of BlueCode works on values that live in variables and copy freely. Two things need
+more: data whose size is not known at compile time, a list or a tree, and data that outlives
+a call. Both are provided by owned structs, allocated in memory the host lends to the module,
+and by `state`, the variables a module keeps from one call to the next. The design is single
+ownership with moves and compile-time drops, the shape of Rust without borrows that can be
+stored. Every allocated struct has exactly one owner at every moment, a variable, a field or
+a parameter. Giving it to someone else moves it. When the owner lets go, the struct is freed,
+along with everything it owned in turn. There is no garbage collector, no reference count and
+no arena, and freed memory returns to the instance's heap at once. The compiler places every
+free and refuses every program in which a value could be used after it was given away.
+
+## Owned structs
 
 ```bluecode
 struct Point:
@@ -22,30 +33,53 @@ def int length (int a, int b):
     return s.end.x - s.start.x
 ```
 
-`own T` is a struct `T` kept in a block of the instance's heap and owned by the variable,
-field or parameter that holds it. `new T(v1, ...)` allocates that block and builds the value
-in it, one argument per field like `T(...)`, and hands it to whoever receives it. Only a
-struct can be owned. An `own T` is not a `T`: it cannot be copied into a `T` variable, but
-its fields are read and written through it, `s.end.x`, and a ref can be taken into it.
+`own T` names a struct `T` that lives in a block of the instance's heap and belongs to
+whatever holds the `own T` value: a variable, a field, a parameter. Only a struct can be
+owned; `own int` is refused, since a scalar has no reason to live anywhere but where it is
+used. `new T(v1, ...)` allocates the block and builds the value in it with one argument per
+field in declaration order, as `T(...)` does for a plain struct, and yields an `own T` for
+whoever receives it. `new T` always names the declared struct `T`, whatever a local of that
+name holds. If the heap has no block to give, `new` faults with `out of memory`
+([errors.md](errors.md)). The size of the heap is the host's decision, and a module that must
+not fault sizes its data to it.
 
-The value is freed when its owner lets go: at the end of the block that declared the
-variable, when the variable or field holding it is assigned something else, when a function
-that received it as a parameter returns without passing it on, or when the struct or
-instance holding the field is freed. Freeing an owned struct frees what it owns in turn.
-There is no `free`, no garbage collector and no reference count: the compiler places every
-drop.
+An `own T` is not a `T`. The fields of the owned struct are read and written through the
+value, `s.end.x`, and a ref may be taken into it, but the struct cannot be copied out into a
+`T` variable: `Point q = p` with `p` an `own Point` is refused with `cannot assign own Point
+to 'q' of type Point`. A program that wants a copy builds one field by field. The asymmetry
+keeps the two kinds of value apart in the reader's mind. A plain struct is bytes in a
+variable; an owned struct is a block with an owner.
+
+A field of a struct may be an `own`, which is what makes a linked structure: a node owns its
+children and the root owns the tree. A struct with an owned field is itself an owning value,
+and the rules below apply to it as they apply to an `own`.
+
+## When memory is freed
+
+The owner frees what it owns when it lets go, and it lets go in four ways. A variable goes
+out of scope at the end of the block that declared it, and whatever it still owns is freed
+there. A variable or a field is assigned a new value, and the old value is freed before the
+new one is stored, so a field assigned in a loop never holds more than one value. A function
+that received an owned value as a parameter returns without having moved it anywhere, and
+the value is freed on return. And a struct that owns fields is freed, which frees its
+fields, recursively, so dropping the root of a tree drops the tree.
+
+Every function has a single exit path that frees what its locals still own, and every early
+return, every relayed failure and every fault goes through it, so a failure never leaks what
+the failing call had allocated. The compiler tracks, for each owning local, whether it
+currently holds a value, and frees only what is held. There is nothing to write for any of
+this, and there is no destructor either: freeing returns the block to the heap and runs no
+code of the program's.
 
 ## Moves
 
-A value that owns memory, an `own` or a struct with an `own` field, is never copied. Using a
-variable holding one as a value moves it: into a parameter, a field, a new variable, a
-result. The variable is then dead until it is assigned again, and the compiler refuses to
-read it. Moving, in the body of a loop, a variable declared around the loop is refused too,
-unless the body assigns it again before its end.
-
-A field, a `ref` and a `state` variable are never moved out of: reach in with `ref`, or take
-the value out with `take`. A fresh value, a `new`, a call's result or a `take`, is free to
-give.
+An owning value is never copied, because two owners would free the block twice. Using a
+variable that holds one as a value moves it: into a parameter when passed, into a field or a
+variable when assigned or declared from, into the caller's hands when returned. After the
+move the variable is dead. Reading it is refused with `'node' was moved` until an assignment
+gives it a value again, after which it is alive as before. The check is flow-sensitive within
+a function: a variable moved in one arm of an `if` is dead after the `if`, unless that arm
+always returns, since a path that leaves the function leads nowhere.
 
 ```bluecode
 struct Node:
@@ -64,22 +98,55 @@ def () hand_over ():
     keep(node)
 ```
 
+Loops get a stricter rule. A variable declared outside a `while` and moved inside its body
+would be moved a second time on the next iteration, so the compiler refuses the move with
+`'node' is moved inside a loop`, unless the body assigns the variable again before its end,
+in which case every iteration starts with a live value. A variable declared inside the body
+is a fresh variable each time and may be moved freely.
+
+Three kinds of place are never moved out of. A field, because the struct holding it would be
+left with a dead field and no way to tell; `keep(node.next)` is refused with `cannot move out
+of a field: take a ref into it, or take it with 'take'`. A `ref`, because the place belongs
+to someone else. A `state` variable, because the instance would be left with a hole. The
+message names the two alternatives, which are the two forms below: reach into the place with
+`ref`, or, when the place is an `own T?`, take the value out with `take`, which leaves
+something well defined behind. A field or a state of type `own T`, without the question
+mark, is only ever reached with `ref`. A fresh
+value, the result of `new`, of a call or of a `take`, belongs to nobody yet and may be given
+anywhere. A fresh owning value whose fields are read without being stored first, as in
+`leaf(1).value`, is refused, because nothing would own it afterwards.
+
 ## Optional owns
 
-`own T?` may hold nothing, written `none`; it is the only optional type. An `own T` goes
-where an `own T?` is expected, and so does `none`, never the reverse. An `own T?` is used by
-binding it, and the binding is the only way to reach what it holds:
+`own T?` is an `own T` that may hold nothing. It is the only optional type in the language,
+and `none` is its empty value. An `own T` may be used where an `own T?` is expected, and so
+may `none`; the reverse is refused, an `own T?` passed to an `own T` parameter reporting
+`argument 1 should be own Node, got own Node?`. Nothing is reachable through an `own T?`
+directly. `node.next.value` is refused with `own Node? may be none: bind it with 'if ref' or
+'or:' first`, and so is comparing an own with `==`, since the question "is it empty" is
+answered by binding it, never by a test.
 
-| Form | Binds | When empty |
-|---|---|---|
-| `if ref T x = ref place:` | `x`, a ref to the content, for the arm | the arm is skipped; `elif` and `else` follow as usual |
-| `if own T x = expression:` | `x`, the content moved out, for the arm | the arm is skipped |
-| `ref T x = ref place or:` + block | `x`, a ref to the content, for the rest of the block | the block runs and must leave the function |
-| `own T x = expression or:` + block | `x`, the content moved out, for the rest of the block | the block runs and must leave the function |
+Binding is the operation that turns an `own T?` into something usable, and it has four forms.
+The two `if` forms run an arm with the name bound when the optional holds something and skip
+it otherwise; `elif` and `else` follow as usual. The two `or:` forms bind the name for the
+rest of the block and run the `or:` block when the optional is empty. That block must leave
+the function, for the same reason a catch block must ([errors.md](errors.md)): so that the
+name is bound on every line after it. A block that could fall through is refused with `the
+'or:' block must leave the function`.
 
-The `expression` of an `own` binding is a `take`, a call, or a variable of type `own T?`,
-which moves. Reading `place.field` through an unbound `own T?` is refused, and so is `==` on
-any own: bind it to know whether it holds something.
+| Form | Binds |
+|---|---|
+| `if ref T x = ref place:` | a ref to the content, for the arm |
+| `if own T x = expression:` | the content, moved out, for the arm |
+| `ref T x = ref place or:` + block | a ref to the content, for the rest of the block |
+| `own T x = expression or:` + block | the content, moved out, for the rest of the block |
+
+The `ref` forms bind into the place without moving anything. A tree is walked with `if ref
+Node child = ref tree.left:` and stays whole. The `own` forms move the content out of an
+expression, which is a `take`, a call returning an `own T?`, or a variable of that type,
+which is then moved. The type written on the binding is the plain struct for a ref and the
+plain own for an own; `cannot bind Node to 'child' of type Point` reports a mismatch, and a
+binding from a value that is not an `own T?` is `expected an own that may be none, got Node`.
 
 ```bluecode
 struct Node:
@@ -109,11 +176,16 @@ def (bool, uint) find (ref Node tree, uint key):
     return find(ref child, key)
 ```
 
-## take
+## Taking
 
 `take place` moves the content out of an `own T?` place, a variable, a field or a state, and
-leaves `none` in it. It is the only way to remove something from a structure. It yields an
-`own T?`, to bind with `or:` or `if own`, or to assign to another `own T?` place.
+stores `none` in its stead. It is the only way to remove something from a structure, and it
+is what makes a queue or a stack writable: the head is taken out of the state, its successor
+is taken out of it and put back in the state, and the head itself is returned or dropped.
+`take` yields an `own T?`, to bind with `or:` or `if own`, or to give wherever an `own T?`
+is expected: another optional place, a parameter, a field of a `new`. It applies only to a place, `'take' needs a variable or a field`, and only to an
+optional own, `'take' needs an optional own, got own Node`, since a plain `own T` has no
+empty value to leave behind.
 
 ```bluecode
 struct Transfer:
@@ -135,21 +207,47 @@ def (bool, uint) dequeue ():
     return true, first.amount
 ```
 
+`enqueue` shows the idiom for pushing. The new node takes the old head as its successor in
+the same expression that builds it, and the assignment to `head` stores the node. Nothing is
+freed on the way, since the old head was taken and not overwritten. In `dequeue`, the node
+bound to `first` is freed when the function returns, after its fields were read; its
+successor was taken back into the state before that, so nothing goes with it.
+
 ## The frozen rule
 
-While a ref variable points into a place, that place, with everything containing it and
-everything it contains, is frozen: it cannot be assigned, moved, taken or passed by ref until
-the ref's block ends. Otherwise the ref could name freed memory. The rule is lexical: it
-holds for the block the ref was declared in, whatever the values are.
+A ref local names a place, and while it does, the place must stay what it was. Assigning it
+would free an owned value the ref points into. Moving it or taking it would empty it. Passing
+it by ref to a function would let that function do either. So for as long as a ref variable
+is in scope, the place it was bound to is frozen, together with every place containing it
+and every place inside it: none of them may be assigned, moved, taken or passed by ref. The
+diagnostic names the action, `cannot assign 'line.start' while 'p' refers into it`, and
+reads `move`, `take` or `pass by ref` for the others.
+
+The rule is lexical. It is decided from the text of the block, by the path of the ref and
+the path of the place, and not from what the values are, which is why it also applies when
+the place holds no owned value at all: a ref to a plain `Point` field freezes that field the
+same way. The cost is a refusal that a value-level analysis would have allowed. The benefit
+is a rule a reader can check by looking at the block. A ref parameter is not a borrow in this
+sense; the caller's place is protected by the fact that the caller is suspended.
 
 ## State
 
-`state T name` at file level declares a variable that lives in the instance from one call to
-the next, zero or `none` when the instance is created. Any type goes: a scalar, a struct, an
-`own`, an `own T?`. A state is read, assigned (the old value is freed), reached with `ref` and
-taken with `take`; it is never moved out of and never a ref. The host creates the instance
-and sizes its heap ([host.md](host.md)); a call made without an instance runs on a throwaway
-one.
+`state T name` at file level declares a variable that lives in the instance rather than on
+the stack and keeps its value from one call to the next. Any type is allowed: a scalar, a
+struct, an `own`, an `own T?`. A state starts out zero, or `none`, when the instance is
+created, and is never uninitialised. It is read like a local, assigned, in which case the old
+value is freed like any other assignment, reached into with `ref`, and taken from with
+`take`. It is never moved out of and never a ref. Nothing else frees what a state owns: the
+value stays in the instance's heap until the state place is assigned again or the host
+discards the instance, which is why the bytes an instance holds do not fall back to zero
+between calls. Together with owned structs, state is what
+lets a module hold a data structure of unbounded size across calls: the tree of the corpus
+is built by one call, searched by another and pruned by a third, all on the same instance.
+
+The host decides how much heap an instance has and which calls share one. A call made
+without an instance runs on a fresh one that is discarded afterwards
+([hosting.md](hosting.md)). Nothing in an instance ever crosses to the host as a pointer,
+which is what lets the host treat it as opaque memory, copy it, or throw it away.
 
 ## Refused
 

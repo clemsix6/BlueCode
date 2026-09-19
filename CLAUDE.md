@@ -57,7 +57,8 @@ feature.
 ## The reference follows the language
 
 `docs/language/` is the reference: one file per aspect stating what the compiler accepts,
-what it refuses and with which message, with `SKILL.md` as the index an agent loads. It is
+what it refuses and with which message, with `.claude/skills/bluecode/SKILL.md` as the index an
+agent loads and `docs/SUMMARY.md` as the one a reader opens. It is
 part of the definition of done: a change to the language, a new rule, a new or reworded
 diagnostic, is not finished until the reference says it, in the same PR. `just docs/check`
 compiles every `bluecode` block of the reference and checks that every diagnostic it quotes
