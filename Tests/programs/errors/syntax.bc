@@ -1,0 +1,18 @@
+/// Broken syntax: the parser must recover and report every line.
+
+def int missing_colon (int x)  // error: expected ':'
+    return x
+
+
+def int missing_paren (int x):
+    return (x + 1  // error: expected ')'
+
+
+def int bad_indent (int x):
+    int y = x
+        int z = y  // error: unexpected indentation
+    return z  // error: undefined name 'z'
+
+
+struct:  // error: expected a struct name
+    int x

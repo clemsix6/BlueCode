@@ -1,7 +1,7 @@
 /// Every way a failure can be mishandled: the compiler must reject each one.
 
 error Frozen
-error Frozen
+error Frozen  // error: error 'Frozen' is already declared
 
 
 def uint! withdraw (uint balance, uint amount):
@@ -11,7 +11,7 @@ def uint! withdraw (uint balance, uint amount):
 
 
 def () cannot_fail (uint balance):
-    return error.Frozen
+    return error.Frozen  // error: 'cannot_fail' cannot fail: mark it with '!' or handle the case
 
 
 def uint plain (uint balance):
@@ -23,45 +23,45 @@ def ()! reject ():
 
 
 def uint unknown_error (uint balance):
-    return error.Empty
+    return error.Empty  // error: unknown error 'Empty'
 
 
 def uint try_without_bang (uint balance):
-    return try withdraw(balance, 10)
+    return try withdraw(balance, 10)  // error: 'try' needs a function marked '!': settle the failure here with 'catch'
 
 
 def uint bare_fallible_call (uint balance):
-    return withdraw(balance, 10)
+    return withdraw(balance, 10)  // error: the call can fail: use 'catch'
 
 
 def uint! bare_fallible_call_in_failing (uint balance):
-    uint left = withdraw(balance, 10)
+    uint left = withdraw(balance, 10)  // error: the call can fail: use 'try' or 'catch'
     return left
 
 
 def uint! try_on_infallible (uint balance):
-    return try plain(balance)
+    return try plain(balance)  // error: the call cannot fail
 
 
 def uint catch_on_infallible (uint balance):
-    uint left = plain(balance) catch 0
+    uint left = plain(balance) catch 0  // error: the call cannot fail
     return left
 
 
 def uint catch_block_that_falls_through (uint balance):
-    uint left = withdraw(balance, 10) catch err:
+    uint left = withdraw(balance, 10) catch err:  // error: the catch block must leave the function
         balance = 0
     return left
 
 
 def uint wrong_fallback (uint balance):
-    uint left = withdraw(balance, 10) catch true
+    uint left = withdraw(balance, 10) catch true  // error: the fallback should be uint, got bool
     return left
 
 
 def uint error_in_a_condition (uint balance):
     uint left = withdraw(balance, 10) catch err:
-        if err:
+        if err:  // error: condition must be bool, got error
             return 0
         return 1
     return left
@@ -69,9 +69,9 @@ def uint error_in_a_condition (uint balance):
 
 def bool error_ordered (uint balance):
     uint left = withdraw(balance, 10) catch err:
-        return err < err
+        return err < err  // error: an error can only be compared with '==' or '!='
     return true
 
 
 def ()! catch_value_without_a_value ():
-    reject() catch 0
+    reject() catch 0  // error: 'catch' with a value needs a call that returns one value, this one returns 0

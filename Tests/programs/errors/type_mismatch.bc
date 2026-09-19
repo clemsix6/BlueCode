@@ -1,0 +1,47 @@
+/// Every line in this file has a type error: the compiler must report each one.
+
+struct Point:
+    int x
+    int y
+
+
+def int mixed (int a, uint b):
+    return a + b  // error: operator '+' cannot mix int and uint
+
+
+def bool not_a_bool (int x):
+    return x  // error: cannot return int where bool is expected
+
+
+def int wrong_call (int x):
+    return mixed(x)  // error: expected 2 argument(s), got 1
+
+
+def uint bad_cast (bool b):
+    return uint(b)  // error: cannot cast bool to uint
+
+
+def int no_field (Point p):
+    return p.z  // error: struct 'Point' has no field 'z'
+
+
+def (int, int) count (int x):
+    return x  // error: 'count' returns 2 value(s), got 1
+
+
+def int falls_through (int x):  // error: not all paths of 'falls_through' return a value
+    if x > 0:
+        return 1
+
+
+def int unused_result (int x):
+    mixed(x, uint(x))  // error: the call returns 1 value(s) that are not used
+    return x
+
+
+def Point wrong_arity ():
+    return Point(1)  // error: 'Point' has 2 field(s), got 1 value(s)
+
+
+def Point wrong_field (bool b):
+    return Point(1, b)  // error: field 'y' of 'Point' is int, got bool

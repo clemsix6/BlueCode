@@ -6,7 +6,7 @@ It was written for [BluePods](https://github.com/clemsix6/BluePods), a decentral
 
 A compiled BlueCode file is called a pod, a name kept from where it started. It is a freestanding ELF object for one CPU, and it holds code and nothing else. No data section, no relocation, no libc, no imports. The same object runs on Linux and on macOS. The Go runtime in this repository copies it into executable memory and calls its entry points through a short assembly trampoline. Arguments and results sit in plain memory, in the layout a Go struct with the same fields already has.
 
-Two directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a pod and calls it. The examples in `Compiler/examples/` are the language's specification: each feature is shown in one of them and the runtime's tests run them all.
+Three directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a pod and calls it. `Tests/`, also in Go, holds the corpus: the programs in `Tests/programs/` are the language's specification, each feature shown in one of them, and the harness there compiles and runs every one of them for both CPUs.
 
 ## Where it fits
 
@@ -100,7 +100,7 @@ Memory is owned. There is no garbage collector, no reference count and no arena.
 
 `state` declares what a pod keeps from one call to the next. The state, and the memory `own` values are allocated from, live in an instance the host creates. The queue above is filled by one call and emptied by another. Only functions marked `external` can be called from the host, and their signatures take and return plain values. An `own` value, a ref into pod memory or a pointer of any kind never crosses.
 
-The files under `Compiler/examples/errors/` go through every rule the compiler enforces, one case each:
+The files under `Tests/programs/errors/` go through every rule the compiler enforces, one case each:
 
 ```
 ownership.bc:36:10: error: 'node' was moved
@@ -110,14 +110,14 @@ ownership.bc:47:10: error: cannot move out of a field: take a ref into it, or ta
 
 ## From a source file to a pod
 
-The compiler prints LLVM IR on standard output and writes no file. The justfile it ships in `Compiler/dist/` pipes that output into clang, and `just publish` lays the justfile and the examples next to the single-file binary:
+The compiler prints LLVM IR on standard output and writes no file. The justfile it ships in `Compiler/dist/` pipes that output into clang, and `just publish` lays the justfile next to the single-file binary:
 
 ```bash
-cd Compiler && just publish
-cd bin/Release/net10.0/osx-arm64/publish
-just pod examples/bank.bc aarch64    # bank.aarch64.o and bank.json, next to the source
-just pod examples/bank.bc x86_64
-just ll examples/bank.bc             # the IR, to read
+just publish
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/bank.bc aarch64    # bank.aarch64.o and bank.json, next to the source
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/bank.bc x86_64
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile ll Tests/programs/bank.bc              # the IR, to read
+just test
 ```
 
 The `pod` recipe runs clang at `-O2` in freestanding mode with jump tables and vectorization turned off. Either would create a constant pool, which needs a data section and a relocation, and the loader accepts neither. The recipe also asks clang to record every function's stack frame in a section of the object, which is how the runtime knows how much stack a pod needs.
@@ -226,6 +226,6 @@ The compiler, the object format, the manifest and the runtime are complete for t
 
 - Gas is threaded through every call and checked, but nothing charges it yet. The cost table that makes each block of code pay is the next piece. For BluePods it is a consensus rule, so it gets designed with the network rather than here.
 - There are no arrays. The only memory of variable size is a structure of owned structs, like the queue and the tree in the examples.
-- Every example is compiled for both CPUs, but the x86_64 objects have only been built, never run. The runtime is vetted for amd64 and tested on arm64.
+- Every program is compiled and structurally verified for both CPUs, but the x86_64 objects are never executed. The runtime is vetted for amd64 and tested on arm64.
 - An instance lives in memory. Persisting a pod's state to disk and loading it back is not done.
 - The Go runtime is the only host. The object format and the manifest are all another one needs.

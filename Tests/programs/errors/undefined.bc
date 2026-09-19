@@ -1,0 +1,24 @@
+/// Names that do not exist, or exist somewhere else.
+
+def int unknown_variable ():
+    return y  // error: undefined name 'y'
+
+
+def int unknown_function (int x):
+    return twice(x)  // error: undefined function 'twice'
+
+
+def Foo unknown_type (int x):  // error: unknown type 'Foo'
+    return x
+
+
+def int out_of_scope (int x):
+    if x > 0:
+        int inner = x
+    return inner  // error: undefined name 'inner'
+
+
+def int declared_twice (int x):
+    int y = x
+    int y = x + 1  // error: 'y' is already declared in this block
+    return y

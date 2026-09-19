@@ -1,0 +1,36 @@
+# Runs on an Apple Silicon Mac because the justfiles publish the compiler for osx-arm64 and
+# call clang from Homebrew's LLVM under /opt/homebrew: the runner has to match what a
+# developer's machine gives the justfiles.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set DOTNET_INSTALL_DIR
+        run: echo "DOTNET_INSTALL_DIR=$HOME/.dotnet" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: Runtime/go.mod
+          cache: false
+
+      - run: brew install just llvm
+
+      - run: just test

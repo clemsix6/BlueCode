@@ -31,7 +31,7 @@ metering and the cost of calling a pod from the host.
 
 - The compiler prints LLVM IR (or the JSON manifest) on stdout and never writes files. The
   justfile it ships in `dist/` is what turns a `.bc` into a pod with clang; `just publish`
-  lays it and the examples next to the single-file binary.
+  lays it next to the single-file binary.
 - Every function takes hidden gas, depth, trace and instance parameters; only `external`
   functions get a wrapper, a symbol and an ABI entry in the manifest. The manifest is the
   contract between compiler and runtime: layouts follow natural C alignment, and the runtime
@@ -40,16 +40,18 @@ metering and the cost of calling a pod from the host.
   through an assembly trampoline on a pooled stack sized from the manifest and the object's
   stack-size section, and turns a negative gas into a `Failure` with the trace.
 
-## The examples are the specification
+## The test corpus is the specification
 
-`Compiler/examples/*.bc` show every feature and are what the runtime tests run;
-`examples/errors/*.bc` must each fail with exactly one diagnostic per case. A language
-change is not done until an example shows it, both CPUs compile it without relocation, and
-a Go test exercises the pod.
+`Tests/programs/*.bc` show every feature, one program per theme with a `///` header saying
+what it shows; `Tests/programs/errors/*.bc` must each fail to compile, and carry
+`// error: <message>` markers matched exactly against the compiler's diagnostics — a
+diagnostic without a marker, or a marker without a diagnostic, fails. A language change is
+not done until a program shows it, both CPUs compile it without relocation, and a Go test
+drives the pod.
 
-Workflow: `just publish` in `Compiler/`, then `just testdata` and `just test` in `Runtime/`
-(`just bench` too when the call path moves — the per-call cost is a feature). The pods in
-`Runtime/testdata/` are generated from the examples and not versioned.
+Workflow: `just test` at the root is the whole check — it publishes the compiler and runs
+everything from there; `just bench` too when the call path moves — the per-call cost is a
+feature.
 
 ## Working with the owner
 
