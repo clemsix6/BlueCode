@@ -1,0 +1,161 @@
+/// Branches and loops. 'while' is the only loop and there is no 'break': a loop is left by
+/// failing its condition or by returning out of the function, which is why a flag variable is
+/// the usual way to stop early.
+/// The other rule this pins is how the compiler decides a function returns on every path: it
+/// looks at the last statement only, and a loop never counts, however obviously it ends.
+
+// Branching.
+
+external def int sign (int x):
+    if x < 0:
+        return -1
+    elif x == 0:
+        return 0
+    else:
+        return 1
+
+
+external def int clamp (int x, int low, int high):
+    if x < low:
+        x = low
+    if x > high:
+        x = high
+    return x
+
+
+external def int nested_branches (int x, int y):
+    if x > 0:
+        if y > 0:
+            return 1
+        else:
+            return 2
+    else:
+        if y > 0:
+            return 3
+        else:
+            return 4
+
+
+external def int elif_chain (int x):
+    if x < 10:
+        return 1
+    elif x < 100:
+        return 2
+    elif x < 1000:
+        return 3
+    else:
+        return 4
+
+
+def bool is_even (uint n):
+    return n % 2 == 0
+
+
+external def uint branches_on_a_call (uint n):
+    if is_even(n):
+        return n / 2
+    return 3 * n + 1
+
+
+// Loops. The condition is evaluated again before every round, and the body may declare
+// variables of its own, which live for one round.
+
+external def uint factorial (uint n):
+    uint result = 1
+    while n > 1:
+        result = result * n
+        n = n - 1
+    return result
+
+
+external def uint gcd (uint a, uint b):
+    while b != 0:
+        uint remainder = a % b
+        a = b
+        b = remainder
+    return a
+
+
+external def uint product_by_addition (uint rows, uint columns):
+    uint total = 0
+    uint row = 0
+    while row < rows:
+        uint column = 0
+        while column < columns:
+            total = total + 1
+            column = column + 1
+        row = row + 1
+    return total
+
+
+external def uint digit_sum (uint n):
+    uint total = 0
+    while n > 0:
+        total = total + n % 10
+        n = n / 10
+    return total
+
+
+// Leaving a loop early: there is no 'break', so either a flag ends the condition or a return
+// leaves the whole function. A loop the compiler cannot see the end of still needs a return
+// after it, because a loop never counts as returning.
+
+external def uint first_multiple_over (uint step, uint floor):
+    uint candidate = step
+    while true:
+        if candidate > floor:
+            return candidate
+        candidate = candidate + step
+    return 0
+
+
+external def uint index_of_divisor (uint n, uint limit):
+    uint candidate = 2
+    bool searching = true
+    uint found = 0
+    while searching and candidate <= limit:
+        if n % candidate == 0:
+            found = candidate
+            searching = false
+        candidate = candidate + 1
+    return found
+
+
+// A function with no return types needs no return statement at all: the end of its body is
+// one.
+
+def counts_up (uint n):
+    uint i = 0
+    while i < n:
+        i = i + 1
+
+
+external def uint calls_a_function_with_no_result (uint n):
+    counts_up(n)
+    return n
+
+
+// The shapes that count as returning on every path: a trailing return, an if with an else
+// whose every arm returns, and an arm that loops first and returns last.
+
+external def int trailing_return (int x):
+    int doubled = x * 2
+    return doubled
+
+
+external def int if_else_both_return (int x):
+    if x > 0:
+        return x
+    else:
+        return -x
+
+
+external def uint loop_then_return (uint n):
+    if n == 0:
+        return 0
+    else:
+        uint total = 0
+        while n > 0:
+            total = total + n
+            n = n - 1
+        return total
