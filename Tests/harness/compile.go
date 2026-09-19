@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -28,9 +29,10 @@ func (a Artifacts) Object(arch string) string {
 
 // build holds the one compilation of a program, whether it succeeded or not.
 type build struct {
-	once      sync.Once // guards the compilation itself
-	artifacts Artifacts // what it produced
-	err       error     // why it produced nothing
+	once      sync.Once   // guards the compilation itself
+	artifacts Artifacts   // what it produced
+	err       error       // why it produced nothing
+	fresh     atomic.Bool // set once the compilation ran, cleared by the caller that reports it
 }
 
 // builds caches one build per program path.
@@ -42,16 +44,33 @@ var builds sync.Map
 func Compile(t testing.TB, program string) Artifacts {
 	t.Helper()
 
+	artifacts, fresh := compile(t, program)
+	if fresh {
+		t.Logf("%s: compiled for %s, both objects verified", program, strings.Join(architectures, " and "))
+	}
+
+	return artifacts
+}
+
+// compile is what Compile and Build both build on: it does the caching and reports whether this
+// call is the one that ran the compilation, so each keeps its own wording for the one log line a
+// program gets.
+func compile(t testing.TB, program string) (Artifacts, bool) {
+	t.Helper()
+
 	entry, _ := builds.LoadOrStore(program, &build{})
 	cached := entry.(*build)
 
-	cached.once.Do(func() { cached.artifacts, cached.err = buildProgram(program) })
+	cached.once.Do(func() {
+		cached.artifacts, cached.err = buildProgram(program)
+		cached.fresh.Store(true)
+	})
 
 	if cached.err != nil {
 		t.Fatal(cached.err)
 	}
 
-	return cached.artifacts
+	return cached.artifacts, cached.fresh.CompareAndSwap(true, false)
 }
 
 // buildProgram stages a program in build/, keeps its IR next to it and turns it into a pod for

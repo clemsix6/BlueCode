@@ -8,7 +8,7 @@ publish:
 test: publish
     just Runtime/test
     just docs/check
-    cd Tests && go test -count=1 ./...
+    cd Tests && go test -count=1 -v ./...
 
 # Publishes the compiler and measures the per-call cost, which is a feature of the runtime.
 bench: publish
