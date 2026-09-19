@@ -1,27 +1,37 @@
 ---
 name: bluecode
-description: Reference for BlueCode, the language of BluePods pods (.bc files). Syntax, types, functions and refs, errors and faults, ownership and state, the host boundary. Use when writing or reviewing a .bc program, when one fails to compile, or when a host has to call a pod.
+description: Reference for the BlueCode language (.bc files) and for hosting the modules it compiles to. Syntax, types, functions and refs, errors and faults, ownership and state, the object and manifest formats, the calling convention. Use when writing or reviewing a .bc program, when one fails to compile, or when a host in any language has to load and call a module.
 ---
 
 # BlueCode reference
 
-BlueCode is a small statically typed language that compiles to a native pod a host calls
-from Go. It has 64-bit integers, bools and structs, functions with several results, refs,
-errors as values, compile-time ownership and per-instance state. It has no floats, no
-strings, no arrays, no pointers, no globals other than `state`, and no way to call the host.
+BlueCode is a small statically typed language for code that a program runs on someone
+else's behalf. A program is one `.bc` file; it compiles to a module, an object of machine
+code for one CPU plus a manifest, that a host loads and calls through a fixed C signature.
+The language has 64-bit integers, bools and structs, functions with several results, refs,
+errors as values, ownership decided at compile time and per-instance state. It has no
+floating point, no strings, no arrays, no pointers, no globals other than `state`, and no
+way for the code to call the host. Determinism, checked arithmetic, bounded depth and memory
+and a trace on every failure are properties of the language, not of a runtime around it.
 
-Each file states what the compiler accepts, what it refuses and with which message. The
-programs under `Tests/programs/` are the executable specification; `Tests/programs/errors/`
-holds the refused cases, one per rule, with the message as a `// error:` marker on the line.
+Each chapter below is written to be read on its own. The first five state the language, what
+the compiler accepts, what it refuses and with which message, and end with a table of those
+messages. The last two are the embedding specification: a host in any language can be
+written from them.
 
-| File | Covers |
+| Chapter | Covers |
 |---|---|
-| [syntax.md](syntax.md) | file layout, indentation, comments, literals, operators, statements |
-| [types.md](types.md) | int, uint, bool, structs, construction, casts, several results |
-| [functions.md](functions.md) | def, external, parameters, ref, calls, return, scope |
+| [syntax.md](syntax.md) | file layout, indentation, comments, literals, operators, statements, scope |
+| [types.md](types.md) | int, uint, bool, structs, construction, casts, layout, several results |
+| [functions.md](functions.md) | def, external, parameters, ref, ref variables, calls, return |
 | [errors.md](errors.md) | error, !, try, catch, traces, faults |
 | [ownership.md](ownership.md) | own, new, none, take, moves, drops, bindings, the frozen rule, state |
-| [host.md](host.md) | pods, manifest, entry ABI, gas, traces, instances, the Go runtime |
+| [modules.md](modules.md) | the pipeline, the object and its checks, the manifest, layouts |
+| [hosting.md](hosting.md) | the entry signature, stack, trace, instance, gas, failure protocol, writing a host, the Go library |
+
+The programs under `Tests/programs/` are the executable specification and show every
+feature in use; `Tests/programs/errors/` holds the refused cases with the message as a
+`// error:` marker on the line, and every message this reference quotes is one of them.
 
 ## The rules that bite
 
@@ -32,13 +42,13 @@ holds the refused cases, one per rule, with the message as a `// error:` marker 
 5. A function with results ends every path on a `return`; a `while` never counts as such a path.
 6. A call is a statement only when it returns nothing. A value that is not used is an error.
 7. A ref parameter takes `ref place` at the call site; a value parameter never does.
-8. A call that can fail is never bare: `try f()`, `f() catch value`, or `f() catch err:` with a block that leaves the function.
+8. A call that can fail is never bare: `try f()`, `f() catch value`, or `f() catch err:` with a block that leaves the function. `catch` only follows a call that is the whole value of a declaration, an assignment or a statement, never `return`; `try` goes anywhere.
 9. Faults, division by zero, overflow, depth, memory, cannot be caught. Check before computing.
-10. An `own` value moves: after `g(node)` or `x = node`, `node` is dead. A field or a `state` is never moved out of: `ref` into it, or `take` it.
+10. An `own` value moves: after `g(node)` or `x = node`, `node` is dead. A field or a `state` is never moved out of: `ref` into it, or, when it is an `own T?`, `take` it.
 11. An `own T?` is used by binding it: `if ref T x = ref place:`, or `T x = ... or:` with a block that leaves.
 12. While a ref variable points into a place, that place is frozen: no assignment, move, take or pass by ref.
 13. Only `external` functions are visible to the host, and nothing that owns memory appears in their signature.
-14. Every `+`, `-` and `*` is overflow-checked. `-x` is `int` only.
+14. Every `+`, `-`, `*`, `/` and `%` is checked. `-x` is `int` only.
 
 ## Checking a program
 

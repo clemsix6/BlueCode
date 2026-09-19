@@ -1,12 +1,12 @@
 # BlueCode
 
-BlueCode is a small language for code that a program runs on someone else's behalf: a plugin, a smart contract, a pricing rule, a script a user uploads. It reads like Python with types. It compiles to native code through LLVM. And it comes with the things you would otherwise have to bolt onto a language before you could trust it with that job. Two machines running the same code get the same answer. Every function is metered. Memory and recursion have a ceiling. An error carries a trace back to the line that raised it. The host calls into it the way it calls its own functions, in nanoseconds, with no virtual machine in between and nothing to serialize.
+BlueCode is a small language for code that a program runs on someone else's behalf: a plugin, a smart contract, a pricing rule, a script a user uploads. It reads like Python with types. It compiles to native code through LLVM. And it comes with the things you would otherwise have to bolt onto a language before you could trust it with that job. Two machines running the same code get the same answer. Every function carries a gas budget. Memory and recursion have a ceiling. An error carries a trace back to the line that raised it. The host calls into it the way it calls its own functions, in nanoseconds, with no virtual machine in between and nothing to serialize.
 
 It was written for [BluePods](https://github.com/clemsix6/BluePods), a decentralized cloud whose backends are pods in Rust compiled to WebAssembly, and it is what will replace them. BluePods is the first user and it sets the priorities. Nothing in the language is tied to it, though. Any program that embeds code it did not write has the same wish list: run it fast, run it the same everywhere, cut it off when it has spent its budget, and get a clear answer when it fails.
 
-A compiled BlueCode file is called a pod, a name kept from where it started. It is a freestanding ELF object for one CPU, and it holds code and nothing else. No data section, no relocation, no libc, no imports. The same object runs on Linux and on macOS. The Go runtime in this repository copies it into executable memory and calls its entry points through a short assembly trampoline. Arguments and results sit in plain memory, in the layout a Go struct with the same fields already has.
+A compiled BlueCode file is a module: a freestanding ELF object for one CPU that holds code and nothing else, and a manifest that says how to call it. No data section, no relocation, no libc, no imports. The same object runs on Linux and on macOS. The Go runtime in this repository copies it into executable memory and calls its entry points through a short assembly trampoline. Arguments and results sit in plain memory, in the layout a Go struct with the same fields already has, and any language that can call a C function can host a module the same way.
 
-Two directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a pod and calls it. The examples in `Compiler/examples/` are the language's specification: each feature is shown in one of them and the runtime's tests run them all.
+Two directories. `Compiler/`, in C#, turns a `.bc` file into LLVM IR. `Runtime/`, in Go, loads a module and calls it. The examples in `Compiler/examples/` are the language's specification: each feature is shown in one of them and the runtime's tests run them all.
 
 ## Where it fits
 
@@ -16,13 +16,13 @@ BlueCode is a native plugin that the compiler makes safe. The guarantees are pro
 
 ## Simple on purpose
 
-The syntax is borrowed from the high-level languages people already know, and it stays that way even though what comes out is machine code. Blocks are indentation. The type goes before the name, a function's return type goes before its name, and `and`, `or` and `not` are words. There are no pointers, no generics, no classes and no lifetimes to annotate, and a pod is one file of structs and functions with no header and no build file next to it. The compiler manages memory. It works out at compile time what owns what and where it gets freed, so the code never frees anything and never leaks. The whole language fits in an afternoon, and the compiler is strict enough that what it accepts does what it says. A program it refuses comes back with one diagnostic per mistake, each with a line and a column.
+The syntax is borrowed from the high-level languages people already know, and it stays that way even though what comes out is machine code. Blocks are indentation. The type goes before the name, a function's return type goes before its name, and `and`, `or` and `not` are words, which evaluate both sides rather than short-circuit. There are no pointers, no generics, no classes and no lifetimes to annotate, and a module is one file of structs and functions with no header and no build file next to it. The compiler manages memory. It works out at compile time what owns what and where it gets freed, so the code never frees anything and never leaks. The whole language fits in an afternoon, and the compiler is strict enough that what it accepts does what it says. A program it refuses comes back with diagnostics that each carry a line and a column.
 
 None of that costs anything at run time. The compiler emits LLVM IR and clang optimizes it at `-O2` the same way it would optimize C. What comes out is machine code with no interpreter, no virtual machine and no runtime library under it. The only overhead is the checks the language requires, and each one is a compare and a branch.
 
 ## The language
 
-Three scalar types, `int` and `uint` on 64 bits and `bool`, and structs made of them. A function can return several values. That is all a pod computes with. There are no floats and no strings, and no arrays yet.
+Three scalar types, `int` and `uint` on 64 bits and `bool`, and structs made of them. A function can return several values. That is all a module computes with. There are no floats and no strings, and no arrays yet.
 
 ```
 struct Account:
@@ -98,7 +98,7 @@ external def (bool, uint, uint, uint) dequeue ():
 
 Memory is owned. There is no garbage collector, no reference count and no arena. A value marked `own` lives in memory of its own for as long as the variable or field that owns it, and is freed the moment its owner is reassigned, goes out of scope or gets dropped. It moves rather than copies. Handing it to a function or a field hands it over, and the old name is dead; the compiler checks that, along with moves inside loops and reads after a move. `new T(...)` builds a value in its own memory. `own T?` says the place may hold nothing, `none` empties it, and `take` moves what a field owns out of it and leaves `none` behind, which is the only way to remove something from a structure. An optional is used by binding it. `if ref Node child = ref tree.left:` runs the block when there is a child, and `own Transfer first = take head or:` binds it or runs a block that has to leave. A ref can only point up the stack and nothing else ever points at an owned value, so nothing can outlive it and freeing comes down to the compiler placing the drops.
 
-`state` declares what a pod keeps from one call to the next. The state, and the memory `own` values are allocated from, live in an instance the host creates. The queue above is filled by one call and emptied by another. Only functions marked `external` can be called from the host, and their signatures take and return plain values. An `own` value, a ref into pod memory or a pointer of any kind never crosses.
+`state` declares what a module keeps from one call to the next. The state, and the memory `own` values are allocated from, live in an instance the host creates. The queue above is filled by one call and emptied by another. Only functions marked `external` can be called from the host, and their signatures take and return plain values. An `own` value, a ref into the module's memory or a pointer of any kind never crosses.
 
 The files under `Compiler/examples/errors/` go through every rule the compiler enforces, one case each:
 
@@ -108,7 +108,7 @@ ownership.bc:42:14: error: 'node' is moved inside a loop
 ownership.bc:47:10: error: cannot move out of a field: take a ref into it, or take it with 'take'
 ```
 
-## From a source file to a pod
+## From a source file to a module
 
 The compiler prints LLVM IR on standard output and writes no file. The justfile it ships in `Compiler/dist/` pipes that output into clang, and `just publish` lays the justfile and the examples next to the single-file binary:
 
@@ -120,7 +120,7 @@ just pod examples/bank.bc x86_64
 just ll examples/bank.bc             # the IR, to read
 ```
 
-The `pod` recipe runs clang at `-O2` in freestanding mode with jump tables and vectorization turned off. Either would create a constant pool, which needs a data section and a relocation, and the loader accepts neither. The recipe also asks clang to record every function's stack frame in a section of the object, which is how the runtime knows how much stack a pod needs.
+The `pod` recipe runs clang at `-O2` in freestanding mode with jump tables and vectorization turned off. Either would create a constant pool, which needs a data section and a relocation, and the loader accepts neither. The recipe also asks clang to record every function's stack frame in a section of the object, which is how the runtime knows how much stack a module needs.
 
 Every function the compiler emits takes hidden parameters for the gas left, the call depth, the trace and the instance, and returns its results together with the gas. An `external` function also gets a wrapper with a fixed C signature, an exported symbol and an entry in the manifest. The manifest is the contract between the compiler and the host. It gives the layout of every struct and of every external function's arguments and results, the size of the state, the error names and the depth limit. Layouts follow natural C alignment, so a struct declared with the same fields in the same order in Go, C or Rust has the same layout without any annotation.
 
@@ -149,7 +149,9 @@ Every function the compiler emits takes hidden parameters for the gas left, the 
 
 ## The runtime
 
-`Runtime/` is the reference host, a Go module with no dependency and no cgo. It parses the ELF object itself, maps the code into executable memory and reads the manifest. A call is a jump through an assembly trampoline of a few instructions, on a stack taken from a per-pod pool and sized from the manifest's depth limit and the largest frame the object records, with a guard page below it. Arguments and results are Go memory passed by address. A `ref` argument is written in place, so the caller sees the account after the withdrawal in the very struct it passed. Nothing in the object format or in the manifest is specific to Go; a host in another language would do the same in a few hundred lines.
+`Runtime/` is a Go library, and it is the reference host rather than the only possible one. It parses the ELF object itself, maps the code into executable memory and reads the manifest. A call is a jump through an assembly trampoline of a few instructions, on a stack taken from a pool and sized from the manifest's depth limit and the largest frame the object records, with a guard page below it. Arguments and results are Go memory passed by address. A `ref` argument is written in place, so the caller sees the account after the withdrawal in the very struct it passed.
+
+Nothing in the object or the manifest is specific to Go. The entry of every external function is a plain C function with one fixed signature, the blocks it reads and writes are C-layout structs, and the memory it needs, a stack, a trace block and an instance, is described byte for byte in the reference. A host in C, Rust, Zig, C# or Java through its foreign function interface is a few hundred lines, most of them parsing ELF and JSON; [docs/language/hosting.md](docs/language/hosting.md) is written so that it can be done from the document alone, without reading the Go code.
 
 ```go
 pod, err := bluecode.Load("bank.aarch64.o", "bank.json")
@@ -176,7 +178,7 @@ var results struct {
 gasLeft, err := transfer.Call(unsafe.Pointer(&args), unsafe.Pointer(&results), 1_000_000)
 ```
 
-A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the pod recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a payroll that caught an insufficient balance and raised its own error instead:
+A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the module recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a payroll that caught an insufficient balance and raised its own error instead:
 
 ```
 PayrollUnfunded
@@ -186,7 +188,7 @@ caused by Insufficient
     error_handling.bc:55 transfer
 ```
 
-A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the pod allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the pod may own, calls through it, reads how many bytes the pod holds with `Live`, and closes it when done. An instance runs one call at a time. A pod's functions can be called from any number of goroutines on separate instances.
+A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the module allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the module may own, calls through it, reads how many bytes the pod holds with `Live`, and closes it when done. An instance runs one call at a time. A module's functions can be called from any number of goroutines on separate instances.
 
 ```go
 instance, err := pod.NewInstance(bluecode.DefaultHeapSize)
@@ -202,15 +204,15 @@ if _, err := instance.Call(enqueue, unsafe.Pointer(&args), nil, 1_000_000); err 
 }
 ```
 
-The cost of a call is a feature, and `just bench` measures it after every change to the call path. On an Apple M3 Max a call into a pod costs about 11 ns, a failing one with its trace about 12 ns, and neither allocates. That is the whole price of the boundary. A host can call a pod inside a loop the way it would call a closure.
+The cost of a call is a feature, and `just bench` measures it after every change to the call path. On an Apple M3 Max a call into a module costs about 11 ns and allocates nothing, whether or not the function is one that can fail. A call that does fail costs a few tens of nanoseconds more, for the trace it writes and the Failure value the host receives. That is the whole price of the boundary. A host can call a module inside a loop the way it would call a closure.
 
 ## What a host can rely on
 
-- Two machines running the same pod on the same input get the same result. No floats, no wrapping arithmetic, no uninitialized memory, and the emitted IR leaves no undefined behaviour for the optimizer to exploit.
-- Every failure is accounted for. An error is a value the code declared and the host can name. A fault ends the call with a negative gas that names it. Both carry a trace. A pod cannot loop forever or recurse without end, because the code the compiler emits checks gas and depth itself.
+- Two machines running the same module on the same input get the same result. No floats, no wrapping arithmetic, no uninitialized memory, and the emitted IR leaves no undefined behaviour for the optimizer to exploit.
+- Every failure is accounted for. An error is a value the code declared and the host can name. A fault ends the call with a negative gas that names it. Both carry a trace. A module cannot recurse without end, because the code the compiler emits checks the depth itself; the gas it threads through every call is what will stop a loop once the cost table lands.
 - Memory is bounded twice. The stack is sized from the depth limit and the frame sizes the object records; the heap is whatever the host gives the instance. Running out of either is a fault, not a crash.
-- Nothing leaks across the boundary. The host reads and writes plain blocks of memory whose layout the manifest describes. The pod sees nothing of the host and can call nothing in it.
-- The object is code and only code. The loader refuses an object with a data section or with a relocation into its code, which an import would need too. The trust in a pod therefore rests on its source and on the compiler. A host that runs code it did not write, a validator for instance, compiles the source itself with pinned compiler and clang versions instead of accepting a binary.
+- Nothing leaks across the boundary. The host reads and writes plain blocks of memory whose layout the manifest describes. The module sees nothing of the host and can call nothing in it.
+- The object is code and only code. The loader refuses an object with a data section or with a relocation into its code, which an import would need too. The trust in a module therefore rests on its source and on the compiler. A host that runs code it did not write, a validator for instance, compiles the source itself with pinned compiler and clang versions instead of accepting a binary.
 
 ## BluePods
 
@@ -220,6 +222,14 @@ Measured on the same machine as the benchmark above, the Rust pod costs about 37
 
 The node still runs WebAssembly pods. Replacing them is what this project was started for, and the runtime's API is what the node will call, but that work has not begun.
 
+## Documentation
+
+The reference lives in [docs/](docs/SUMMARY.md), one chapter per aspect of the language and two for embedding it. It states what the compiler accepts and refuses, with the exact diagnostics, and every code block in it is compiled and every quoted diagnostic checked against the compiler by `just docs/check`, so it cannot drift from the language without the build saying so.
+
+- [Syntax](docs/language/syntax.md), [types](docs/language/types.md), [functions and refs](docs/language/functions.md), [errors and faults](docs/language/errors.md), [ownership and state](docs/language/ownership.md).
+- [Modules](docs/language/modules.md), the object and the manifest, and [hosting a module](docs/language/hosting.md), everything a host in any language has to do.
+- [SKILL.md](docs/language/SKILL.md) is the same reference packaged as a skill for coding agents, with the rules that trip people up first.
+
 ## Where it stands
 
 The compiler, the object format, the manifest and the runtime are complete for the language described above, and every example runs through the tests. What is missing, in the order it will be done:
@@ -227,5 +237,5 @@ The compiler, the object format, the manifest and the runtime are complete for t
 - Gas is threaded through every call and checked, but nothing charges it yet. The cost table that makes each block of code pay is the next piece. For BluePods it is a consensus rule, so it gets designed with the network rather than here.
 - There are no arrays. The only memory of variable size is a structure of owned structs, like the queue and the tree in the examples.
 - Every example is compiled for both CPUs, but the x86_64 objects have only been built, never run. The runtime is vetted for amd64 and tested on arm64.
-- An instance lives in memory. Persisting a pod's state to disk and loading it back is not done.
-- The Go runtime is the only host. The object format and the manifest are all another one needs.
+- An instance lives in memory. Persisting a module's state to disk and loading it back is not done.
+- The Go library is the only host written so far. The object format and the manifest are all another one needs, and the hosting chapter of the reference is written for that.
