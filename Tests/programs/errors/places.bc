@@ -1,0 +1,48 @@
+/// What can be taken, referred into, copied out of, or changed while a ref points into it.
+
+struct Point:
+    int x
+
+
+struct Node:
+    int value
+    own Node? next
+
+
+def own Node leaf (int value):
+    return new Node(value, none)
+
+
+def () keep (own Node node):
+    return
+
+
+def () bump (ref Node node):
+    return
+
+
+def () take_a_value ():
+    own Node? n = take leaf(1)  // error: 'take' needs a variable or a field
+
+
+def int copy_out_of_an_own ():
+    own Point p = new Point(1)
+    Point q = p  // error: cannot assign own Point to 'q' of type Point
+    return q.x
+
+
+def () frozen_take (ref Node tree):
+    ref Node child = ref tree.next or:
+        return
+    own Node? gone = take tree.next  // error: cannot take 'tree.next' while 'child' refers into it
+
+
+def () frozen_pass (ref Node tree):
+    ref Node child = ref tree.next or:
+        return
+    bump(ref tree)  // error: cannot pass by ref 'tree' while 'child' refers into it
+
+
+def () frozen_move (own Node tree):
+    ref Node same = ref tree
+    keep(tree)  // error: cannot move 'tree' while 'same' refers into it

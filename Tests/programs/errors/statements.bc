@@ -1,0 +1,47 @@
+/// Lines that are not statements, or statements in the wrong place.
+
+struct Point:
+    int x
+    int y
+
+
+struct Node:
+    int value
+    own Node? next
+
+
+def () assign_a_value ():
+    Point(1, 2) = Point(0, 0)  // error: only a variable or a field can be assigned
+
+
+def () bare_expression (int x):
+    x + 1  // error: expected '='
+
+
+int y = 1  // error: expected 'struct', 'error', 'state' or 'def'
+
+
+state ref Point origin  // error: a state variable cannot be a ref
+
+
+def () empty_block (int x):
+    if x > 0:
+    return  // error: expected an indented block
+
+
+def int no_operand (int x):
+    return x +  // error: expected an expression
+
+
+def uint! try_without_a_call (uint n):
+    return try n  // error: 'try' needs a call
+
+
+def () catch_without_a_call (uint n):
+    uint m = n catch 0  // error: 'catch' needs a call
+    return  // error: unexpected token at the end of the line
+
+
+def () or_binds_two (ref Node n):
+    ref Node a, ref Node b = ref n.next or:  // error: a declaration with 'or:' binds one name
+        return
