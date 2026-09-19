@@ -103,7 +103,7 @@ Memory is owned. There is no garbage collector, no reference count and no arena.
 The files under `Tests/programs/errors/` go through every rule the compiler enforces, one case each:
 
 ```
-ownership.bc:36:10: error: 'node' was moved
+ownership.bc:28:10: error: 'node' was moved
 ownership.bc:42:14: error: 'node' is moved inside a loop
 ownership.bc:47:10: error: cannot move out of a field: take a ref into it, or take it with 'take'
 ```
@@ -114,9 +114,9 @@ The compiler prints LLVM IR on standard output and writes no file. The justfile 
 
 ```bash
 just publish
-just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/bank.bc aarch64    # bank.aarch64.o and bank.json, next to the source
-just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/bank.bc x86_64
-just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile ll Tests/programs/bank.bc              # the IR, to read
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/external.bc aarch64    # external.aarch64.o and external.json, next to the source
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile pod Tests/programs/external.bc x86_64
+just -f Compiler/bin/Release/net10.0/osx-arm64/publish/justfile ll Tests/programs/external.bc              # the IR, to read
 just test
 ```
 
@@ -176,14 +176,15 @@ var results struct {
 gasLeft, err := transfer.Call(unsafe.Pointer(&args), unsafe.Pointer(&results), 1_000_000)
 ```
 
-A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the pod recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a payroll that caught an insufficient balance and raised its own error instead:
+A failure comes back as a `*bluecode.Failure` holding the error's name and code, or the fault's, and the trace the pod recorded, resolved to function names and line numbers through the manifest. Printed, it looks like this, for a group booking that caught a refused reservation and raised its own error, twice:
 
 ```
-PayrollUnfunded
-    error_handling.bc:74 pay_salary
-caused by Insufficient
-    error_handling.bc:35 withdraw
-    error_handling.bc:55 transfer
+Abandoned
+    errors.bc:87 booked_for_a_group
+caused by Rejected
+    errors.bc:79 take_seats
+caused by Refused
+    errors.bc:19 reserve
 ```
 
 A plain `Call` runs on a throwaway instance. The state starts at zero and whatever the pod allocated is gone afterwards. To keep state between calls, the host creates an `Instance` with the memory the pod may own, calls through it, reads how many bytes the pod holds with `Live`, and closes it when done. An instance runs one call at a time. A pod's functions can be called from any number of goroutines on separate instances.

@@ -23,6 +23,23 @@ def int number_as_a_while_condition (uint n):
     return 0
 
 
+error Something
+
+
+def ()! fallible_call (int value):
+    if value < 0:
+        return error.Something
+    return
+
+
+def int condition_is_an_error (int value):
+    fallible_call(value) catch err:
+        if err:  // error: condition must be bool, got error
+            return 0
+        return 1
+    return 2
+
+
 def int if_without_an_else (int n):  // error: not all paths of 'if_without_an_else' return a value
     if n > 0:
         return 1

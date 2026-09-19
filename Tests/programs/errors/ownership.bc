@@ -70,6 +70,10 @@ def () none_into_a_plain_own ():
     own Node node = none  // error: cannot assign none to 'node' of type own Node
 
 
+def () own_value_into_a_plain_struct ():
+    Point x = new Point(1, 2)  // error: cannot assign own Point to 'x' of type Point
+
+
 // Binding an own that may be none.
 
 def () bound_from_a_plain_own (own Node node):

@@ -11,6 +11,9 @@ struct Point:
     int y
 
 
+error Something
+
+
 def int literal_too_large_for_int ():
     return 9223372036854775808  // error: integer literal is too large for int
 
@@ -68,12 +71,28 @@ def bool structs_ordered (Point p, Point q):
     return p < q  // error: operator '<' needs numbers, got Point
 
 
+def ()! error_source (int value):
+    if value < 0:
+        return error.Something
+    return
+
+
+def bool error_ordered (int value):
+    error_source(value) catch err:
+        return err < error.Something  // error: an error can only be compared with '==' or '!='
+    return true
+
+
 def int cast_without_an_argument ():
     return int()  // error: a cast to int takes exactly one argument
 
 
 def int cast_with_two_arguments ():
     return int(1, 2)  // error: a cast to int takes exactly one argument
+
+
+def uint cast_to_uint_without_an_argument ():
+    return uint()  // error: a cast to uint takes exactly one argument
 
 
 def uint cast_from_a_bool (bool b):

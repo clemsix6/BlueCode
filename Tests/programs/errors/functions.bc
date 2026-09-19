@@ -142,6 +142,10 @@ def (int, bool) a_relay_of_the_wrong_type ():
     return two()  // error: value 2 of the call is int, bool is expected
 
 
+def (uint, int) a_relay_of_the_wrong_type_to_uint ():
+    return two()  // error: value 1 of the call is int, uint is expected
+
+
 def int a_return_of_another_type ():
     return true  // error: cannot return bool where int is expected
 
