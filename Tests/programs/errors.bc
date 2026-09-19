@@ -1,0 +1,168 @@
+/// An error is a declared name the compiler numbers; a function that can fail is marked "!".
+/// A caller hands the failure up with "try", replaces it with "catch value", or examines it in
+/// a "catch err:" block that must leave the function. Every failure carries a trace: "try"
+/// adds a frame, an error raised in a block chains onto the failure that block received, and
+/// relaying one rewinds to what the block began with, dropping what its own work wrote.
+
+/// The compiler numbers errors from one, in the order they are declared here, and the manifest
+/// hands the names back to the host.
+error Refused
+error Rejected
+error Abandoned
+error Retried
+
+
+// Raising and handing up
+
+def uint! reserve (uint seats, uint free):
+    if seats == 0:
+        return error.Refused
+    if seats > free:
+        return error.Rejected
+    return free - seats
+
+
+def uint! book (uint seats, uint free):
+    return try reserve(seats, free)
+
+
+def uint! book_group (uint seats, uint free):
+    return try book(seats, free)
+
+
+/// "try" hands the failure up with this line added to its trace and nothing else.
+external def uint! booked (uint seats, uint free):
+    return try book(seats, free)
+
+
+/// "try" binds tighter than arithmetic: the call is tried, then one is added to its value.
+external def uint! booked_plus_one (uint seats, uint free):
+    return try reserve(seats, free) + 1
+
+
+// Settling a failure with a value
+
+/// A function that settles every failure itself needs no "!".
+external def uint seats_left (uint seats, uint free):
+    uint left = reserve(seats, free) catch 0
+    return left
+
+
+/// The fallback is worked out on the failing branch only: a divisor that would fault never
+/// divides anything while the call gives a value.
+external def uint seats_left_or_share (uint seats, uint free, uint divisor):
+    uint left = reserve(seats, free) catch free / divisor
+    return left
+
+
+// Examining a failure in a block
+
+/// The block must leave the function, so the line after it only runs with a value in hand.
+external def uint booked_or_zero (uint seats, uint free):
+    uint left = book(seats, free) catch err:
+        return 0
+    return left
+
+
+/// Comparing the error is how a block tells failures apart: one is replaced by another error,
+/// the rest are relayed as they are.
+external def uint! booked_or_retried (uint seats, uint free):
+    uint left = book(seats, free) catch err:
+        if err == error.Rejected:
+            return error.Retried
+        return err
+    return left
+
+
+def uint! take_seats (uint seats, uint free):
+    uint left = reserve(seats, free) catch err:
+        return error.Rejected
+    return left
+
+
+/// Each block that raises instead of relaying chains onto the failure it received, so a trace
+/// can hold a whole line of causes.
+external def uint! booked_for_a_group (uint seats, uint free):
+    uint left = take_seats(seats, free) catch err:
+        return error.Abandoned
+    return left
+
+
+/// A block inside a block: the error raised in the inner one chains onto the failure the inner
+/// call left behind, not onto the one the outer block received.
+external def uint! booked_or_spare (uint seats, uint free, uint spare):
+    uint left = book(seats, free) catch outer:
+        uint fallback = reserve(spare, free) catch inner:
+            return error.Abandoned
+        return fallback
+    return left
+
+
+// What a block does to the trace
+
+/// Relaying rewinds the trace to what it held when the block began, so the frames the block's
+/// own failures wrote past that point are dropped.
+external def uint! relayed_after_deeper_work (uint seats, uint free):
+    uint left = reserve(seats, free) catch err:
+        uint ignored = book_group(seats, free) catch 0
+        return err
+    return left
+
+
+/// The frames of the failure a block received are still there when it relays: rewinding brings
+/// back even the ones the block's own work never wrote over.
+external def uint! relayed_after_shallower_work (uint seats, uint free):
+    uint left = book_group(seats, free) catch err:
+        uint ignored = reserve(seats, free) catch 0
+        return err
+    return left
+
+
+// Calls with no values, and calls with several
+
+def ()! confirm (ref uint held, uint seats):
+    if seats == 0:
+        return error.Refused
+    held = held + seats
+
+
+/// A call that returns nothing is caught on its own line.
+external def bool confirmed (uint seats):
+    uint held = 0
+    confirm(ref held, seats) catch err:
+        return false
+    return true
+
+
+/// And handed up on its own line, with the line of the "try" in the trace.
+external def uint! held (uint seats):
+    uint total = 0
+    try confirm(ref total, seats)
+    return total
+
+
+def (uint, uint)! split (uint seats):
+    if seats == 0:
+        return error.Refused
+    return seats / 2, seats - seats / 2
+
+
+/// A declaration of several names takes a catch block like any other.
+external def (uint, uint)! halves (uint seats):
+    uint left, uint right = split(seats) catch err:
+        return err
+    return left, right
+
+
+// What a block never sees
+
+def uint! per_head (uint seats, uint free):
+    if seats == 0:
+        return error.Refused
+    return free / (seats - seats)
+
+
+/// A fault is not a failure: "catch" never sees it, the call gives up and so does its caller.
+external def uint divided (uint seats, uint free):
+    uint left = per_head(seats, free) catch 0
+    return left

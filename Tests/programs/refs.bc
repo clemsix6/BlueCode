@@ -1,0 +1,108 @@
+/// A ref names the caller's place itself, never a copy: what a function writes through a ref
+/// parameter the caller reads back, the host's argument block included. A ref is taken on a
+/// variable or a field only, it lives in a parameter or a ref variable, and it freezes the
+/// place it names — and the places that place is part of — until its block ends.
+
+struct Point:
+    int x
+    int y
+
+
+struct Line:
+    Point start
+    Point end
+
+
+struct Box:
+    Line edge
+    int weight
+
+
+// Writing through a ref parameter
+
+/// Both halves of the argument block are exchanged where they sit; nothing is returned.
+external def () swap (ref int a, ref int b):
+    int tmp = a
+    a = b
+    b = tmp
+
+
+def () translate (ref Point point, int dx, int dy):
+    point.x = point.x + dx
+    point.y = point.y + dy
+
+
+/// A field of a ref parameter is handed on as a ref of its own.
+external def () shift (ref Line line, int dx, int dy):
+    translate(ref line.start, dx, dy)
+    translate(ref line.end, dx, dy)
+
+
+/// Two levels of fields under a ref parameter still name one place.
+external def () shift_edge (ref Box box, int dx, int dy):
+    translate(ref box.edge.start, dx, dy)
+    box.weight = box.weight + 1
+
+
+// Ref variables
+
+def () bump (ref int n):
+    n = n + 1
+
+
+/// A ref variable bound to a local: the callee writes the local itself, twice over.
+external def int bumped (int start):
+    int n = start
+    ref int alias = ref n
+    bump(ref alias)
+    bump(ref alias)
+    return n
+
+
+/// A ref variable bound to a field names that field for the rest of the block.
+external def () clamp_start (ref Line line, int floor):
+    ref Point start = ref line.start
+    if start.x < floor:
+        start.x = floor
+    if start.y < floor:
+        start.y = floor
+
+
+/// A ref reaching two levels down is still one place, written through like any other.
+external def () widen (ref Box box, int by):
+    ref int x = ref box.edge.end.x
+    x = x + by
+
+
+/// Reading a ref gives a value of its own: writing that copy leaves the place alone.
+external def (int, int) copy_then_write (ref int n):
+    int copy = n
+    copy = copy + 100
+    n = n + 1
+    return copy, n
+
+
+/// A parameter taken by value is a copy too: the caller's point stays where it was.
+external def int moved_x (Point point, int dx):
+    translate(ref point, dx, 0)
+    return point.x
+
+
+// What a ref freezes
+
+/// A ref freezes the place it names and whatever that place is part of, never a sibling: the
+/// other end of the line can be written while a ref into the first one is alive.
+external def () raise_end (ref Line line, int by):
+    ref Point start = ref line.start
+    line.end = Point(start.x + by, start.y + by)
+
+
+/// The freeze lasts for the block that declares the ref and no longer: once the block is over
+/// the whole place can be written again.
+external def int frozen_until_the_block_ends (int n):
+    int total = n
+    if n > 0:
+        ref int inner = ref total
+        bump(ref inner)
+    total = total * 2
+    return total
