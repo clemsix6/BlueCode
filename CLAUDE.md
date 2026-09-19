@@ -46,9 +46,15 @@ determinism, gas metering and the cost of calling a pod from the host.
 `Tests/programs/*.bc` show every feature, one program per theme with a `///` header saying
 what it shows; `Tests/programs/errors/*.bc` must each fail to compile, and carry
 `// error: <message>` markers matched exactly against the compiler's diagnostics — a
-diagnostic without a marker, or a marker without a diagnostic, fails. A language change is
-not done until a program shows it, both CPUs compile it without relocation, and a Go test
-drives the pod.
+diagnostic without a marker, or a marker without a diagnostic, fails.
+
+The corpus is part of the definition of done, like the reference: a change to the compiler
+or the runtime, a new rule, a new or reworded diagnostic, a run-time behaviour, a bug fix, is
+not finished until the corpus shows it, in the same PR. A feature or a behaviour gets a
+program under `programs/`, compiled for both CPUs without relocation, and a Go test that
+drives the pod through it; a refusal gets its case under `programs/errors/` with the marker;
+a bug fix gets the test that would have caught it. A test that stops passing because a
+behaviour was changed on purpose is updated with the change, never skipped or loosened.
 
 Workflow: `just test` at the root is the whole check — it publishes the compiler and runs
 everything from there; `just bench` too when the call path moves — the per-call cost is a
