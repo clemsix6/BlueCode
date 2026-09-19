@@ -1,0 +1,62 @@
+/// Conditions and returns. A condition is a bool and nothing else — there is no truthiness, so
+/// a number is not a condition. And a function with a return type has to end on a return: the
+/// compiler looks at the last statement of the body only, so an 'if' without an 'else' never
+/// counts, and neither does a loop, however plainly it ends or plainly it does not.
+
+def int number_as_an_if_condition (int n):
+    if n:  // error: condition must be bool, got int
+        return 1
+    return 0
+
+
+def int number_as_an_elif_condition (int n):
+    if n > 0:
+        return 1
+    elif n:  // error: condition must be bool, got int
+        return 2
+    return 0
+
+
+def int number_as_a_while_condition (uint n):
+    while n:  // error: condition must be bool, got uint
+        n = n - 1
+    return 0
+
+
+def int if_without_an_else (int n):  // error: not all paths of 'if_without_an_else' return a value
+    if n > 0:
+        return 1
+
+
+def int one_arm_falls_through (int n):  // error: not all paths of 'one_arm_falls_through' return a value
+    if n > 0:
+        return 1
+    else:
+        int unused = n
+
+
+def int elif_chain_without_an_else (int n):  // error: not all paths of 'elif_chain_without_an_else' return a value
+    if n > 0:
+        return 1
+    elif n < 0:
+        return 2
+
+
+def int a_loop_never_counts (uint n):  // error: not all paths of 'a_loop_never_counts' return a value
+    while true:
+        if n > 10:
+            return 1
+        n = n + 1
+
+
+def int nested_arm_without_an_else (int n, int m):  // error: not all paths of 'nested_arm_without_an_else' return a value
+    if n > 0:
+        if m > 0:
+            return 1
+    else:
+        return 2
+
+
+def int ends_on_an_assignment (int n):  // error: not all paths of 'ends_on_an_assignment' return a value
+    int total = n
+    total = total + 1

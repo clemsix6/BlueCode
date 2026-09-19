@@ -1,0 +1,27 @@
+/// Where 'catch' may and may not be written. It settles a failure at the two places a call can
+/// stand — a declaration's value and a statement — and nowhere else; in particular a 'return'
+/// reads a plain expression, so the one idiom it would be most useful in does not parse.
+/// A 'catch' the parser refuses takes the next line down with it, which is why this file holds
+/// nothing else.
+
+error Refused
+
+
+def int! fallible (int n):
+    return n
+
+
+def int catch_after_return (int n):
+    return fallible(n) catch 0  // error: the call can fail: use 'catch' // error: unexpected token at the end of the line
+
+
+def int catch_on_a_value (int n):  // error: not all paths of 'catch_on_a_value' return a value
+    int y = n catch err:  // error: 'catch' needs a call
+        return 0
+    return y  // error: unexpected token at the end of the line
+
+
+def int catch_as_a_statement (int n):
+    n catch err:  // error: expected '='
+        return 0  // error: unexpected indentation
+    return n

@@ -1,0 +1,54 @@
+/// Broken statements. A statement is a declaration, an assignment, a call or one of the three
+/// keywords; anything else is read as far as it goes and then dropped, one line at a time, so
+/// the rest of the function is still checked.
+/// 'elif' and 'or:' are part of the statement they belong to and mean nothing on their own:
+/// neither is a statement the parser knows, so both are read as something else entirely.
+
+def int expression_statement (int n):
+    n  // error: expected '='
+    return n
+
+
+def int assign_to_a_value (int n):
+    1 + 2 = 3  // error: only a variable or a field can be assigned
+    return n
+
+
+def int declaration_without_a_value (int n):
+    int x  // error: expected '=' after the declaration // error: expected an expression
+    return n
+
+
+def int leftover_tokens (int n):
+    int x = 1 2  // error: unexpected token at the end of the line
+    return x
+
+
+def int nested_block (int n):
+    int y = n
+        int z = y  // error: unexpected indentation
+    return y
+
+
+def int block_opener_without_a_body (int n):
+    if n > 0:
+    return n  // error: expected an indented block
+
+
+def int stray_elif (int n):
+    elif n > 0:  // error: expected an expression // error: expected '='
+        return 1  // error: unexpected indentation
+    return n
+
+
+def int binding_without_equals (int n):
+    if int x n:  // error: expected '=' after the name to bind // error: expected an own that may be none, got int
+        return x
+    return n
+
+
+def int otherwise_on_an_assignment (int n):
+    int x = 0
+    x = n or:  // error: unexpected token at the end of the line
+        return 0  // error: unexpected indentation
+    return x

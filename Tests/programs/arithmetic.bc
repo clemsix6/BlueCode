@@ -1,0 +1,102 @@
+/// Integer arithmetic: precedence, the sign rules of signed division, and the checks the
+/// compiler puts around every operator. Nothing wraps and nothing is undefined — an operation
+/// that cannot produce the right answer gives up with a fault on its own line.
+/// The edge values live at the ends of the 64-bit range and no literal can write the smallest
+/// one, so the host passes them in.
+
+// Precedence and associativity, with no operand big enough to fault.
+
+external def int precedence ():
+    return 1 + 2 * 3 - 8 / 2 % 3
+
+
+external def int parentheses ():
+    return (1 + 2) * (3 - 8) / 2
+
+
+external def int unary_minus_binds_tighter_than_star (int a, int b):
+    return -a * b
+
+
+external def int subtraction_is_left_associative (int a, int b, int c):
+    return a - b - c
+
+
+external def int division_is_left_associative (int a, int b, int c):
+    return a / b / c
+
+
+// Signed division truncates toward zero and the remainder takes the sign of the dividend.
+
+external def int signed_quotient (int a, int b):
+    return a / b
+
+
+external def int signed_remainder (int a, int b):
+    return a % b
+
+
+external def uint unsigned_quotient (uint a, uint b):
+    return a / b
+
+
+external def uint unsigned_remainder (uint a, uint b):
+    return a % b
+
+
+// A cast between the two integer types reinterprets the bits and checks nothing, so the round
+// trip is exact for every value.
+
+external def uint as_unsigned (int x):
+    return uint(x)
+
+
+external def int as_signed (uint x):
+    return int(x)
+
+
+// One operator per function, so that the line a fault points at names the operator.
+
+external def int add_signed (int a, int b):
+    return a + b
+
+
+external def uint add_unsigned (uint a, uint b):
+    return a + b
+
+
+external def int subtract_signed (int a, int b):
+    return a - b
+
+
+external def uint subtract_unsigned (uint a, uint b):
+    return a - b
+
+
+external def int multiply_signed (int a, int b):
+    return a * b
+
+
+external def uint multiply_unsigned (uint a, uint b):
+    return a * b
+
+
+external def int negate (int x):
+    return -x
+
+
+// A fault in a callee is a fault in the caller: the trace keeps the callee's frame and the
+// caller adds the line of its call.
+
+external def int average_of_two (int total, int count):
+    return signed_quotient(total, count)
+
+
+// Statements after a return in the same block are never emitted, so this divides by nothing
+// even when the host asks it to divide by zero.
+
+external def int after_a_return (int a, int b):
+    if b == 0:
+        return a
+        int never = a / b
+    return a / b

@@ -1,0 +1,84 @@
+/// Broken declarations: the four things a file may hold, each written wrong. What the parser
+/// does next is part of the rule — it drops the line or the nested block it could not read and
+/// never closes a block by accident, so every declaration below is still read.
+/// Where a diagnostic lands is part of it too: an empty body is only known to be empty once a
+/// line that is not blank and not a comment turns up, which is the next declaration's.
+
+struct:  // error: expected a struct name
+    int x
+
+
+struct NoColon  // error: expected ':' after the struct name
+    int x
+
+
+struct RefField:
+    ref int borrowed  // error: a struct field cannot be a ref
+    int kept
+
+
+struct CommentOnly:
+    // A comment line is invisible to the lexer, so this struct has no field at all.
+
+
+error EmptyStructReportedHere  // error: expected an indented block of fields
+
+
+state ref int shared  // error: a state variable cannot be a ref
+
+
+def ref int returns_a_ref_bare (int x):  // error: a function cannot return a ref
+    return x
+
+
+def (ref int, int) returns_a_ref_parenthesised (int x):  // error: a function cannot return a ref
+    return x, x
+
+
+def (int) (int x):  // error: expected a function name
+    return x
+
+
+def int no_parenthesis:  // error: expected '(' after the function name // error: expected a type // error: expected a name after the type // error: expected ')' after the parameters
+    return 1
+
+
+def int unclosed_parameters (int x:  // error: expected ')' after the parameters
+    return x
+
+
+def (int, int no_closing_return_types ():  // error: expected ')' after the return types
+    return 1, 2
+
+
+def int no_colon (int x)  // error: expected ':'
+    return x
+
+
+def int parameter_without_a_type (1):  // error: expected a type // error: expected a name after the type // error: expected ')' after the parameters // error: expected ':' // error: unexpected token at the end of the line // error: unknown type '1'
+    return 1
+
+
+def int parameter_without_a_name (int):  // error: expected a name after the type
+    return 1
+
+
+def int no_body ():  // error: not all paths of 'no_body' return a value
+
+
+error EmptyBodyReportedHere  // error: expected an indented block
+
+
+error  // error: expected an error name
+
+
+// A bare type followed by an identifier is a return type; only a '(' would make it the name.
+// So this declares a function called 'int', which the built-in type already answers to.
+def int int ():  // error: 'int' is already declared
+    return 1
+
+
+int stray = 1  // error: expected 'struct', 'error', 'state' or 'def'
+
+
+    int indented = 1  // error: unexpected indentation
